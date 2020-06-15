@@ -7,16 +7,18 @@ import time
 from scipy.stats import spearmanr
 
 FILENAME = sys.argv[1]
-TRAIN_SIZE = int(sys.argv[2])
-TRAIN_FEATURES = int(sys.argv[3])
-TRAIN_STEPS = int(sys.argv[4])
-TRAIN_TOL=float(sys.argv[5])
-LAYERS=int(sys.argv[6])
-MAPE_LIM1=float(sys.argv[7])
-MAPE_LIM2=float(sys.argv[8])
-MODEL_PATH_PREFIX = sys.argv[9]
+HEADER = int(sys.argv[2])
+TRAIN_SIZE = int(sys.argv[3])
+TRAIN_FEATURES = int(sys.argv[4])
+TRAIN_STEPS = int(sys.argv[5])
+TRAIN_TOL=float(sys.argv[6])
+LAYERS=int(sys.argv[7])
+MAPE_LIM1=float(sys.argv[8])
+MAPE_LIM2=float(sys.argv[9])
+MODEL_PATH_PREFIX = sys.argv[10]
 
-data = np.array(pd.read_csv(FILENAME, header=None))
+header_arg = 0 if HEADER != 0 else None
+data = np.array(pd.read_csv(FILENAME, header=header_arg))
 
 train_data = data[:TRAIN_SIZE]
 test_data = data[TRAIN_SIZE:]
