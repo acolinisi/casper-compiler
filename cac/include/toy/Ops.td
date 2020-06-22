@@ -208,6 +208,19 @@ def KernelOp : Toy_Op<"kernel"> {
   let arguments = (ins AnyTypeOf<[F64Tensor, F64MemRef]>:$input);
 
   let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
+
+  let extraClassDeclaration = [{
+    bool hasFunc() {
+      return getOperation()->getAttrOfType<StringAttr>("func") != NULL;
+    }
+  }];
+
+  // Invoke a static verify method to verify this constant operation.
+  let verifier = [{
+    if (!this->hasFunc())
+      this->emitError() << "no function in 'func' attribute of kernel op";
+    return mlir::success();
+  }];
 }
 
 def ReshapeOp : Toy_Op<"reshape", [NoSideEffect]> {

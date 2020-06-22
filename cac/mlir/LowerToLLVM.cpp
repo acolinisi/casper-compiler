@@ -177,7 +177,7 @@ public:
 
     // Get a symbol reference to the kernel function, inserting it if necessary.
     StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
-    assert(funcAttr && "no 'func' attr in kernel op"); // TODO: validate method
+    assert(funcAttr); // verified
     StringRef func = funcAttr.getValue();
 
     auto kernRef = getOrInsertKernFunc(rewriter, parentModule,
