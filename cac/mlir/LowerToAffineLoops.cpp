@@ -290,6 +290,7 @@ void ToyToAffineLoweringPass::runOnFunction() {
   // to lower, `toy.print`, as `legal`.
   target.addIllegalDialect<toy::ToyDialect>();
   target.addLegalOp<toy::PrintOp>();
+  target.addLegalOp<toy::KernelOp>();
 
   // Now that the conversion target has been defined, we just need to provide
   // the set of patterns that will lower the Toy operations.

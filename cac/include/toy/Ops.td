@@ -196,6 +196,20 @@ def PrintOp : Toy_Op<"print"> {
   let assemblyFormat = "$input attr-dict `:` type($input)";
 }
 
+def KernelOp : Toy_Op<"kernel"> {
+  let summary = "invoke a kernel function";
+  let description = [{
+    Invoke a kernel function defined in a library that should be
+      linked into the final executable.
+  }];
+
+  // We also allow a F64MemRef to enable interop during partial lowering.
+  // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
+  let arguments = (ins AnyTypeOf<[F64Tensor, F64MemRef]>:$input);
+
+  let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
+}
+
 def ReshapeOp : Toy_Op<"reshape", [NoSideEffect]> {
   let summary = "tensor reshape operation";
   let description = [{

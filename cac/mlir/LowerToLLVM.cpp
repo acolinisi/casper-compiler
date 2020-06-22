@@ -156,6 +156,74 @@ private:
         ArrayRef<Value>({cst0, cst0}));
   }
 };
+
+// Lowers a kernel invocation into a call to the kernel function
+class KernelOpLowering : public ConversionPattern {
+public:
+  explicit KernelOpLowering(MLIRContext *context)
+      : ConversionPattern(toy::KernelOp::getOperationName(), 1, context) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto memRefType = (*op->operand_type_begin()).cast<MemRefType>();
+    auto memRefShape = memRefType.getShape();
+    auto loc = op->getLoc();
+    auto *llvmDialect =
+        op->getContext()->getRegisteredDialect<LLVM::LLVMDialect>();
+    assert(llvmDialect && "expected llvm dialect to be registered");
+
+    ModuleOp parentModule = op->getParentOfType<ModuleOp>();
+
+    // Get a symbol reference to the kernel function, inserting it if necessary.
+    std::string kern("mat_abs"); // TODO: take from attribute?
+
+    auto kernRef = getOrInsertKernFunc(rewriter, parentModule,
+        kern, llvmDialect);
+    auto kernOp = cast<toy::KernelOp>(op);
+
+    rewriter.create<CallOp>(loc, kernRef, ArrayRef<Type>(),
+                            ArrayRef<Value>({kernOp.input()}));
+
+    // Notify the rewriter that this operation has been removed.
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+private:
+  /// Return a symbol reference to the kernel function, inserting it into the
+  /// module if necessary.
+  static FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
+                                             ModuleOp module,
+                                             std::string &name,
+                                             LLVM::LLVMDialect *llvmDialect) {
+    auto *context = module.getContext();
+    if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
+
+      // Create a function declaration for the kernel, the signature is:
+      //    `void (int width, int height, float* M)`
+      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+      auto llvmITy = LLVM::LLVMType::getInt64Ty(llvmDialect);
+      auto llvmDTy = LLVM::LLVMType::getDoubleTy(llvmDialect);
+
+      // TODO: unranked memref
+      auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+        ArrayRef<LLVM::LLVMType>({
+          llvmDTy.getPointerTo(), /* buffer */
+          llvmDTy.getPointerTo(), /* start of aligned data */
+          llvmITy, /* offset into buffer */
+          llvmITy, llvmITy, /* size per dim */
+          llvmITy, llvmITy, /* stride per dim */
+          }), /*isVarArg*/ false);
+
+      // Insert the printf function into the body of the parent module.
+      PatternRewriter::InsertionGuard insertGuard(rewriter);
+      rewriter.setInsertionPointToStart(module.getBody());
+      rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), name, llvmFnType);
+    }
+    return SymbolRefAttr::get(name, context);
+  }
+};
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -199,6 +267,7 @@ void ToyToLLVMLoweringPass::runOnOperation() {
   // The only remaining operation to lower from the `toy` dialect, is the
   // PrintOp.
   patterns.insert<PrintOpLowering>(&getContext());
+  patterns.insert<KernelOpLowering>(&getContext());
 
   // We want to completely lower to LLVM, so we use a `FullConversion`. This
   // ensures that only legal operations will remain after the conversion.
