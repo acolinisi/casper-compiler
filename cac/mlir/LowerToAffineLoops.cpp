@@ -160,7 +160,6 @@ struct ConstantOpLowering : public OpRewritePattern<toy::ConstantOp> {
       // This is the case of a tensor of rank 0.
       constantIndices.push_back(rewriter.create<ConstantIndexOp>(loc, 0));
     }
-
     // The constant operation represents a multi-dimensional constant, so we
     // will need to generate a store for each of the elements. The following
     // functor recursively walks the dimensions of the constant shape,

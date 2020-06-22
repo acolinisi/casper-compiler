@@ -20,6 +20,7 @@ add_llvm_executable(cac
   mlir/MLIRGen.cpp
   mlir/Dialect.cpp
   mlir/LowerToAffineLoops.cpp
+  mlir/LowerToLLVM.cpp
   mlir/ShapeInferencePass.cpp
   mlir/ToyCombine.cpp
 
@@ -34,13 +35,19 @@ target_link_libraries(cac
   PRIVATE
   ${dialect_libs}
   ${translation_libs}
+  MLIRAffineToStandard
   MLIRAnalysis
   MLIRCallInterfaces
+  MLIRExecutionEngine
   MLIRIR
+  MLIRLLVMIR
   MLIRParser
   MLIRPass
   MLIRSideEffectInterfaces
+  MLIRSCFToStandard
+  MLIRStandardToLLVM
   MLIRSupport
+  MLIRTargetLLVMIR
   MLIRTransforms
   )
 
