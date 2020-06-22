@@ -176,10 +176,12 @@ public:
     ModuleOp parentModule = op->getParentOfType<ModuleOp>();
 
     // Get a symbol reference to the kernel function, inserting it if necessary.
-    std::string kern("mat_abs"); // TODO: take from attribute?
+    StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
+    assert(funcAttr && "no 'func' attr in kernel op"); // TODO: validate method
+    StringRef func = funcAttr.getValue();
 
     auto kernRef = getOrInsertKernFunc(rewriter, parentModule,
-        kern, llvmDialect);
+        func, llvmDialect);
     auto kernOp = cast<toy::KernelOp>(op);
 
     rewriter.create<CallOp>(loc, kernRef, ArrayRef<Type>(),
@@ -195,7 +197,7 @@ private:
   /// module if necessary.
   static FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
                                              ModuleOp module,
-                                             std::string &name,
+                                             StringRef name,
                                              LLVM::LLVMDialect *llvmDialect) {
     auto *context = module.getContext();
     if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
