@@ -14,6 +14,7 @@
 #include "toy/MLIRGen.h"
 #include "toy/Parser.h"
 #include "toy/Passes.h"
+#include "toy/Build.h"
 
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
@@ -127,8 +128,13 @@ int loadMLIR(mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
 
 int loadAndProcessMLIR(mlir::MLIRContext &context,
                        mlir::OwningModuleRef &module) {
+#if 0
   if (int error = loadMLIR(context, module))
     return error;
+#else
+  if (int error = buildMLIR(context, module))
+    return error;
+#endif
 
   mlir::PassManager pm(&context);
   // Apply any generic pass manager command line options and run the pipeline.

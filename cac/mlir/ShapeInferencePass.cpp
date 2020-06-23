@@ -101,7 +101,8 @@ public:
   /// shaped result.
   static bool returnsDynamicShape(Operation *op) {
     return llvm::any_of(op->getResultTypes(), [](Type resultType) {
-      return !resultType.isa<RankedTensorType>();
+      return !resultType.isa<RankedTensorType>() &&
+        !resultType.isa<IntegerType>();
     });
   }
 };
