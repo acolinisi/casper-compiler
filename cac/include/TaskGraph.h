@@ -9,7 +9,8 @@ namespace cac {
 
 	class Dat {
 	public:
-		Dat(int rows, int cols, const std::vector<double> &vals);
+		Dat(int rows, int cols, const std::vector<double> &vals)
+		: rows(rows), cols(cols), vals(vals) { }
 	public:
 		const int rows, cols;
 		std::vector<double> vals;
@@ -17,21 +18,26 @@ namespace cac {
 
 	class Task {
 	public:
-		Task(const std::string &func, Dat &dat);
+		Task(const std::string &func, Dat &dat)
+			: func(func), dat(&dat), visited(false) { }
+		Task() : dat(NULL), visited(false) { }
 	public:
 		const std::string func;
-		Dat &dat; // TODO: multiple
+		Dat *dat; // TODO: multiple
+		std::vector<Task *> deps;
+		bool visited;
 	};
 
 	class TaskGraph {
 	public:
 		Dat& createDat(int n, int m, const std::vector<double> &vals);
 		Task& createTask(const std::string &func, Dat &dat);
+		Task& createTask(const std::string &func, Dat &dat,
+				std::vector<Task*> deps);
 
-		Task& root() { return *rootTask; }
-	private:
+	public:
 		std::vector<std::unique_ptr<Dat>> dats;
-		std::unique_ptr<Task> rootTask;
+		std::vector<std::unique_ptr<Task>> tasks;
 	};
 
 	// These methods are single-use and exclusive (pick one or the other)

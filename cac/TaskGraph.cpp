@@ -2,16 +2,6 @@
 
 namespace cac {
 
-Dat::Dat(int rows, int cols, const std::vector<double> &vals)
-	: rows(rows), cols(cols), vals(vals)
-{
-}
-
-Task::Task(const std::string &func, Dat& dat)
-	: func(func), dat(dat)
-{
-}
-
 Dat& TaskGraph::createDat(int n, int m, const std::vector<double> &vals)
 {
 	std::unique_ptr<Dat> dat(new Dat(n, m, vals));
@@ -21,10 +11,20 @@ Dat& TaskGraph::createDat(int n, int m, const std::vector<double> &vals)
 
 Task& TaskGraph::createTask(const std::string &func, Dat &dat)
 {
+	std::vector<Task *> deps;
+	return this->createTask(func, dat, deps);
+}
+
+Task& TaskGraph::createTask(const std::string &func, Dat &dat,
+				std::vector<Task*> deps)
+{
 	std::unique_ptr<Task> task(new Task(func, dat));
-	// TODO: accept dependent tasks as arg, and link
-	rootTask = std::move(task);
-	return *rootTask;
+	for (Task* dep : deps) {
+		//dep->dependees.push_back(task.get());
+		task->deps.push_back(dep);
+	}
+	tasks.push_back(std::move(task));
+	return *tasks.back();
 }
 
 } /* namespace cac */
