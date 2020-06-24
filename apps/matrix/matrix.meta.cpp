@@ -5,7 +5,7 @@
 using namespace cac;
 
 int main(int argc, char **argv) {
-  cac::TaskGraph tg;
+	cac::TaskGraph tg;
 
 	std::vector<double> matVals {
 		1.000000e+00, -2.000000e+00, 3.000000e+00,

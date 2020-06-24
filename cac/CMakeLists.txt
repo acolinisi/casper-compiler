@@ -14,8 +14,7 @@ add_public_tablegen_target(ToyCh5CombineIncGen)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/)
 
-add_llvm_executable(cac
-  app.cpp
+add_llvm_library(cac
   build.cpp
   cac.cpp
   TaskGraph.cpp
@@ -31,6 +30,8 @@ add_llvm_executable(cac
   ToyCh5ShapeInferenceInterfaceIncGen
   ToyCh5OpsIncGen
   ToyCh5CombineIncGen
+
+  SHARED
 )
 include_directories(include/)
 llvm_update_compile_flags(cac)
