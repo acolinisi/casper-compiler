@@ -10,11 +10,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "TaskGraph.h"
+#include "Build.h"
+
 #include "toy/Dialect.h"
 #include "toy/MLIRGen.h"
 #include "toy/Parser.h"
 #include "toy/Passes.h"
-#include "toy/Build.h"
 
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
@@ -132,8 +134,16 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   if (int error = loadMLIR(context, module))
     return error;
 #else
+#if 0
   if (int error = buildMLIR(context, module))
     return error;
+#else
+  cac::TaskGraph tg;
+  if (int error = buildApp(tg))
+    return error;
+  if (int error = buildMLIRFromGraph(tg, context, module))
+    return error;
+#endif
 #endif
 
   mlir::PassManager pm(&context);
