@@ -69,6 +69,7 @@ enum Action {
   RunJIT
 };
 }
+#if 0
 static cl::opt<enum Action> emitAction(
     "emit", cl::desc("Select the kind of output desired"),
     cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")),
@@ -83,6 +84,10 @@ static cl::opt<enum Action> emitAction(
                    "JIT the code and run it by invoking the main function")));
 
 static cl::opt<bool> enableOpt("opt", cl::desc("Enable optimizations"));
+#else
+enum Action emitAction = Action::DumpLLVMIR;
+bool enableOpt = false;
+#endif
 
 /// Returns a Toy AST resulting from parsing the file or a nullptr on error.
 std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
@@ -128,15 +133,12 @@ int loadMLIR(mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
   return 0;
 }
 
-int loadAndProcessMLIR(mlir::MLIRContext &context,
+int loadAndProcessMLIR(cac::TaskGraph &tg, mlir::MLIRContext &context,
                        mlir::OwningModuleRef &module) {
 #if 0
   if (int error = loadMLIR(context, module))
     return error;
 #else
-  cac::TaskGraph tg;
-  if (int error = buildApp(tg))
-    return error;
   if (int error = buildMLIRFromGraph(tg, context, module))
     return error;
 #endif
@@ -250,26 +252,24 @@ int runJit(mlir::ModuleOp module) {
   return 0;
 }
 
-int main(int argc, char **argv) {
+void registerDialects() {
   mlir::registerDialect<mlir::StandardOpsDialect>();
   mlir::registerDialect<mlir::AffineDialect>();
   mlir::registerDialect<mlir::LLVM::LLVMDialect>();
   mlir::registerDialect<mlir::scf::SCFDialect>();
 
-  mlir::registerPassManagerCLOptions();
-  cl::ParseCommandLineOptions(argc, argv, "toy compiler\n");
-
-  if (emitAction == Action::DumpAST)
-    return dumpAST();
+  // TODO: investigate if there are other ways to expose these
+  // mlir::registerPassManagerCLOptions();
 
   // If we aren't dumping the AST, then we are compiling with/to MLIR.
 
   // Register our Dialect with MLIR.
   mlir::registerDialect<mlir::toy::ToyDialect>();
+}
 
-  mlir::MLIRContext context;
-  mlir::OwningModuleRef module;
-  if (int error = loadAndProcessMLIR(context, module))
+int build(cac::TaskGraph &tg, mlir::MLIRContext &context,
+    mlir::OwningModuleRef &module) {
+  if (int error = loadAndProcessMLIR(tg, context, module))
     return error;
 
   // If we aren't exporting to non-mlir, then we are done.
@@ -278,15 +278,27 @@ int main(int argc, char **argv) {
     module->dump();
     return 0;
   }
-
-  // Check to see if we are compiling to LLVM IR.
-  if (emitAction == Action::DumpLLVMIR)
-    return dumpLLVMIR(*module);
-
-  // Otherwise, we must be running the jit.
-  if (emitAction == Action::RunJIT)
-    return runJit(*module);
-
-  llvm::errs() << "No action specified (parsing only?), use -emit=<action>\n";
   return -1;
 }
+
+namespace cac {
+
+  // TODO: a method + opaque object for the common build step?
+
+  int emitLLVMIR(cac::TaskGraph &tg) {
+    registerDialects(); // must happen before constructing contexts
+    mlir::MLIRContext context;
+    mlir::OwningModuleRef module;
+    build(tg, context, module);
+    return dumpLLVMIR(*module);
+  }
+
+  int run(cac::TaskGraph &tg) {
+    registerDialects();
+    mlir::MLIRContext context;
+    mlir::OwningModuleRef module;
+    build(tg, context, module);
+    return runJit(*module);
+  }
+
+} /* namespace cac */

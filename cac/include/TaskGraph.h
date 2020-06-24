@@ -34,6 +34,10 @@ namespace cac {
 		std::unique_ptr<Task> rootTask;
 	};
 
+	// These methods are single-use and exclusive (pick one or the other)
+	// TODO: Executable object
+	int emitLLVMIR(TaskGraph &tg); // to stderr
+	int run(cac::TaskGraph &tg);
 
 } /* namespace cac */
 
