@@ -40,11 +40,6 @@ namespace cac {
 		std::vector<std::unique_ptr<Task>> tasks;
 	};
 
-	// These methods are single-use and exclusive (pick one or the other)
-	// TODO: Executable object
-	int emitLLVMIR(TaskGraph &tg); // to stderr
-	int run(cac::TaskGraph &tg);
+} // namespace cac
 
-} /* namespace cac */
-
-#endif /* CAC_TASK_GRAPH_H */
+#endif // CAC_TASK_GRAPH_H

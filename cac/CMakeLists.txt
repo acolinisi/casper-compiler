@@ -16,7 +16,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/)
 
 add_llvm_library(cac
   build.cpp
-  cac.cpp
+  Executable.cpp
   TaskGraph.cpp
   parser/AST.cpp
   mlir/MLIRGen.cpp

@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Executable.h"
 #include "TaskGraph.h"
 #include "Build.h"
 
@@ -281,24 +282,40 @@ int build(cac::TaskGraph &tg, mlir::MLIRContext &context,
   return -1;
 }
 
+
 namespace cac {
 
-  // TODO: a method + opaque object for the common build step?
+  class ExecutableImpl {
+  public:
+    ExecutableImpl() {
+      // This class is single-use because of the registration, but conceptually
+      // it is not a singleton, so not writing it as such.
+      static int num_instances = 0;
+      assert(num_instances == 0);
+      ++num_instances;
 
-  int emitLLVMIR(cac::TaskGraph &tg) {
-    registerDialects(); // must happen before constructing contexts
-    mlir::MLIRContext context;
+      registerDialects(); // must happen before constructing contexts
+      context.reset(new mlir::MLIRContext());
+    }
+    std::unique_ptr<mlir::MLIRContext> context;
     mlir::OwningModuleRef module;
-    build(tg, context, module);
-    return dumpLLVMIR(*module);
+  };
+
+  Executable::~Executable() {
+    delete impl;
   }
 
-  int run(cac::TaskGraph &tg) {
-    registerDialects();
-    mlir::MLIRContext context;
-    mlir::OwningModuleRef module;
-    build(tg, context, module);
-    return runJit(*module);
+  Executable::Executable(cac::TaskGraph &tg) : impl(new ExecutableImpl()) {
+    registerDialects(); // must happen before constructing contexts
+    build(tg, *impl->context, impl->module);
+  }
+
+  int Executable::emitLLVMIR() {
+    return dumpLLVMIR(*impl->module);
+  }
+
+  int Executable::run() {
+    return runJit(*impl->module);
   }
 
 } /* namespace cac */

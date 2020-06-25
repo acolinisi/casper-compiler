@@ -1,11 +1,11 @@
-#include "TaskGraph.h"
+#include "casper.h"
 
 #include <vector>
 
 using namespace cac;
 
 int main(int argc, char **argv) {
-	cac::TaskGraph tg;
+	TaskGraph tg;
 
 	std::vector<double> matVals {
 		1.000000e+00, -2.000000e+00, 3.000000e+00,
@@ -17,5 +17,6 @@ int main(int argc, char **argv) {
 	Task& task_abs = tg.createTask("mat_abs", mat, {&task_inv});
 	Task& task_dbl2 = tg.createTask("mat_tripple", mat, {&task_dbl});
 
-	return emitLLVMIR(tg); // to stderr
+	Executable exec(tg);
+	return exec.emitLLVMIR(); // to stderr
 }
