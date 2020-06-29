@@ -159,9 +159,11 @@ int loadAndProcessMLIR(cac::TaskGraph &tg, mlir::MLIRContext &context,
     // Now that there is only one function, we can infer the shapes of each of
     // the operations.
     mlir::OpPassManager &optPM = pm.nest<mlir::FuncOp>();
+#if 0
     optPM.addPass(mlir::toy::createShapeInferencePass());
     optPM.addPass(mlir::createCanonicalizerPass());
     optPM.addPass(mlir::createCSEPass());
+#endif
   }
 
   if (isLoweringToAffine) {
