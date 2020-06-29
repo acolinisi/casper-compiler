@@ -21,15 +21,10 @@ int main(int argc, char **argv) {
 	};
 	Dat* matB = &tg.createDat(3, 2, matValsB);
 
-	//Task& task_dbl = tg.createTask("mat_double", {matA});
-	//Task& task_inv = tg.createTask("mat_invert", {matA}, {&task_dbl});
+	Task& task_inv = tg.createTask("mat_invert", {matA}, {});
+	Task& task_abs = tg.createTask("mat_abs", {matB}, {});
 
-	//Task& task_inv = tg.createTask("mat_invert", {matA}, {});
-	//Task& task_abs = tg.createTask("mat_abs", {matA}, {&task_inv});
-
-	Task& task_add = tg.createTask("mat_add", {matA, matB}, {});
-
-	//Task& task_dbl2 = tg.createTask("mat_tripple", {matA}, {&task_dbl});
+	Task& task_add = tg.createTask("mat_add", {matA, matB}, {&task_inv, &task_abs});
 
 	Executable exec(tg);
 	return exec.emitLLVMIR(); // to stderr

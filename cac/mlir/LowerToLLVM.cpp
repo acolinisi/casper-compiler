@@ -184,9 +184,7 @@ public:
         func, op->getNumOperands(), llvmDialect);
     auto kernOp = cast<toy::KernelOp>(op);
 
-    // TODO: array of args
-    rewriter.create<CallOp>(loc, kernRef, ArrayRef<Type>(),
-                            ArrayRef<Value>({kernOp.inputA(), kernOp.inputB()}));
+    rewriter.create<CallOp>(loc, kernRef, ArrayRef<Type>(), kernOp.input());
 
     // Notify the rewriter that this operation has been removed.
     rewriter.eraseOp(op);
