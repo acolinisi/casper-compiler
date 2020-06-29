@@ -184,8 +184,9 @@ public:
         func, llvmDialect);
     auto kernOp = cast<toy::KernelOp>(op);
 
+    // TODO: array of args
     rewriter.create<CallOp>(loc, kernRef, ArrayRef<Type>(),
-                            ArrayRef<Value>({kernOp.input()}));
+                            ArrayRef<Value>({kernOp.inputA(), kernOp.inputB()}));
 
     // Notify the rewriter that this operation has been removed.
     rewriter.eraseOp(op);
@@ -211,6 +212,12 @@ private:
       // TODO: unranked memref
       auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
         ArrayRef<LLVM::LLVMType>({
+          llvmDTy.getPointerTo(), /* buffer */
+          llvmDTy.getPointerTo(), /* start of aligned data */
+          llvmITy, /* offset into buffer */
+          llvmITy, llvmITy, /* size per dim */
+          llvmITy, llvmITy, /* stride per dim */
+
           llvmDTy.getPointerTo(), /* buffer */
           llvmDTy.getPointerTo(), /* start of aligned data */
           llvmITy, /* offset into buffer */

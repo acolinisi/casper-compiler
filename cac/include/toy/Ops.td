@@ -206,11 +206,12 @@ def KernelOp : Toy_Op<"kernel"> {
   // We also allow a F64MemRef to enable interop during partial lowering.
   // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
   let arguments = (ins
-      AnyTypeOf<[F64Tensor, F64MemRef]>:$input,
+      AnyTypeOf<[F64Tensor, F64MemRef]>:$inputA,
+      AnyTypeOf<[F64Tensor, F64MemRef]>:$inputB,
       StrAttr:$func
   );
 
-  let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
+  let assemblyFormat = "`(`$inputA `,` $inputB`)` attr-dict `:` `(`type($inputA) `,` type($inputB) `)`";
 }
 
 def ReshapeOp : Toy_Op<"reshape", [NoSideEffect]> {

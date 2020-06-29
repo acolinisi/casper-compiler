@@ -23,8 +23,12 @@ int main(int argc, char **argv) {
 
 	//Task& task_dbl = tg.createTask("mat_double", {matA});
 	//Task& task_inv = tg.createTask("mat_invert", {matA}, {&task_dbl});
-	Task& task_inv = tg.createTask("mat_invert", {matA}, {});
-	Task& task_abs = tg.createTask("mat_abs", {matA}, {&task_inv});
+
+	//Task& task_inv = tg.createTask("mat_invert", {matA}, {});
+	//Task& task_abs = tg.createTask("mat_abs", {matA}, {&task_inv});
+
+	Task& task_add = tg.createTask("mat_add", {matA, matB}, {});
+
 	//Task& task_dbl2 = tg.createTask("mat_tripple", {matA}, {&task_dbl});
 
 	Executable exec(tg);
