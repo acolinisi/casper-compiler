@@ -181,7 +181,7 @@ public:
     StringRef func = funcAttr.getValue();
 
     auto kernRef = getOrInsertKernFunc(rewriter, parentModule,
-        func, llvmDialect);
+        func, op->getNumOperands(), llvmDialect);
     auto kernOp = cast<toy::KernelOp>(op);
 
     // TODO: array of args
@@ -198,7 +198,7 @@ private:
   /// module if necessary.
   static FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
                                              ModuleOp module,
-                                             StringRef name,
+                                             StringRef name, int numOpers,
                                              LLVM::LLVMDialect *llvmDialect) {
     auto *context = module.getContext();
     if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
@@ -209,21 +209,20 @@ private:
       auto llvmITy = LLVM::LLVMType::getInt64Ty(llvmDialect);
       auto llvmDTy = LLVM::LLVMType::getDoubleTy(llvmDialect);
 
-      // TODO: unranked memref
-      auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
-        ArrayRef<LLVM::LLVMType>({
-          llvmDTy.getPointerTo(), /* buffer */
-          llvmDTy.getPointerTo(), /* start of aligned data */
-          llvmITy, /* offset into buffer */
-          llvmITy, llvmITy, /* size per dim */
-          llvmITy, llvmITy, /* stride per dim */
+      std::vector<LLVM::LLVMType> opers;
+      for (int i = 0; i < numOpers; ++i) {
+        opers.push_back(llvmDTy.getPointerTo()); /* buffer */
+        opers.push_back(llvmDTy.getPointerTo()); /* start of aligned data */
+        opers.push_back(llvmITy); /* offset into buffer */
+        opers.push_back(llvmITy); /* size per dim */
+        opers.push_back(llvmITy);
+        opers.push_back(llvmITy); /* stride per dim */
+        opers.push_back(llvmITy);
+      }
 
-          llvmDTy.getPointerTo(), /* buffer */
-          llvmDTy.getPointerTo(), /* start of aligned data */
-          llvmITy, /* offset into buffer */
-          llvmITy, llvmITy, /* size per dim */
-          llvmITy, llvmITy, /* stride per dim */
-          }), /*isVarArg*/ false);
+      // TODO: unranked memref?
+      auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+        opers, /*isVarArg*/ false);
 
       // Insert the printf function into the body of the parent module.
       PatternRewriter::InsertionGuard insertGuard(rewriter);
