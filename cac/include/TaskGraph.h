@@ -7,23 +7,26 @@
 
 namespace cac {
 
+	class DatImpl;
+
 	class Dat {
 	public:
-		Dat(int rows, int cols, const std::vector<double> &vals)
-		: rows(rows), cols(cols), vals(vals) { }
+		Dat(int rows, int cols, const std::vector<double> &vals);
+		~Dat();
 	public:
 		const int rows, cols;
 		std::vector<double> vals;
+		DatImpl *impl;
 	};
 
 	class Task {
 	public:
-		Task(const std::string &func, Dat &dat)
-			: func(func), dat(&dat), visited(false) { }
-		Task() : dat(NULL), visited(false) { }
+		Task(const std::string &func, std::vector<Dat *> dats)
+			: func(func), dats(dats), visited(false) { }
+		Task() : dats(), visited(false) { }
 	public:
 		const std::string func;
-		Dat *dat; // TODO: multiple
+		std::vector<Dat *> dats;
 		std::vector<Task *> deps;
 		bool visited;
 	};
@@ -31,8 +34,8 @@ namespace cac {
 	class TaskGraph {
 	public:
 		Dat& createDat(int n, int m, const std::vector<double> &vals);
-		Task& createTask(const std::string &func, Dat &dat);
-		Task& createTask(const std::string &func, Dat &dat,
+		Task& createTask(const std::string &func, std::vector<Dat *> dat);
+		Task& createTask(const std::string &func, std::vector<Dat *> dat,
 				std::vector<Task*> deps);
 
 	public:
