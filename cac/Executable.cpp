@@ -144,13 +144,19 @@ int loadAndProcessMLIR(cac::TaskGraph &tg, mlir::MLIRContext &context,
     return error;
 #endif
 
+  //module->dump();
+
   mlir::PassManager pm(&context);
   // Apply any generic pass manager command line options and run the pipeline.
   applyPassManagerCLOptions(pm);
 
   // Check to see what granularity of MLIR we are compiling to.
   bool isLoweringToAffine = emitAction >= Action::DumpMLIRAffine;
+#if 1
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
+#else
+  bool isLoweringToLLVM = false;
+#endif
 
   if (enableOpt || isLoweringToAffine) {
     // Inline all functions into main and then delete them.
@@ -188,6 +194,7 @@ int loadAndProcessMLIR(cac::TaskGraph &tg, mlir::MLIRContext &context,
 
   if (mlir::failed(pm.run(*module)))
     return 4;
+  //module->dump();
   return 0;
 }
 

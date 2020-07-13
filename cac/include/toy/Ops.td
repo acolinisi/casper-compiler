@@ -124,6 +124,25 @@ def CastOp : Toy_Op<"cast",
   let hasFolder = 1;
 }
 
+/*
+class F64HalideBuff : public F64MemRef { }
+
+def HalideBuffCastOp : Toy_Op<"halide_buff_cast",
+    [NoSideEffect]> {
+  let summary = "cast to MemRef to Halide buffer";
+  let description = [{
+    The "cast" operation converts a buffer descriptor from MemRef type
+    in the standard dialect to the Halide buffer type in the Casper dialect,
+    without moving any underlying data.
+  }];
+
+  let arguments = (ins F64MemRef:$input);
+  let results = (outs F64HalideBuff:$output);
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
+}
+*/
+
 def GenericCallOp : Toy_Op<"generic_call",
     [DeclareOpInterfaceMethods<CallOpInterface>]> {
   let summary = "generic call operation";
@@ -207,6 +226,24 @@ def KernelOp : Toy_Op<"kernel"> {
   // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
   let arguments = (ins
       Variadic<AnyTypeOf<[F64Tensor, F64MemRef]>>:$input,
+      StrAttr:$func
+  );
+
+  let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
+}
+
+def HalideKernelOp : Toy_Op<"halide_kernel"> {
+  let summary = "invoke a Halide kernel function";
+  let description = [{
+    Invoke a kernel function defined by a Halide pipeline, that has
+      been compiled by a generator and linked into the final executable.
+  }];
+
+  // We also allow a F64MemRef to enable interop during partial lowering.
+  // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
+  let arguments = (ins
+      Variadic<AnyTypeOf<[F64Tensor, F64MemRef]>>:$input,
+      //Variadic<AnyTypeOf<[F64Tensor, F64HalideBuf]>>:$input,
       StrAttr:$func
   );
 

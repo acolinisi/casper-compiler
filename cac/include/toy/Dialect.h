@@ -20,6 +20,15 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "toy/ShapeInferenceInterface.h"
 
+#if 0
+namespace CacTypes {
+enum Kinds {
+  // TODO: to define a dedicated kind, need to patch LLVM (MLIR)
+  HalideBuffType = Type::Kind::FIRST_PRIVATE_EXPERIMENTAL_0_TYPE,
+};
+}; // namespace CacTypes
+#endif
+
 namespace mlir {
 namespace toy {
 

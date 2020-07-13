@@ -12,6 +12,9 @@ Dat::~Dat()
 	delete impl;
 }
 
+Dat& TaskGraph::createDat(int n, int m) {
+	return createDat(n, m, {});
+}
 Dat& TaskGraph::createDat(int n, int m, const std::vector<double> &vals)
 {
 	std::unique_ptr<Dat> dat(new Dat(n, m, vals));

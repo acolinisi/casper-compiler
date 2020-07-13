@@ -33,6 +33,7 @@ namespace cac {
 
 	class TaskGraph {
 	public:
+		Dat& createDat(int n, int m);
 		Dat& createDat(int n, int m, const std::vector<double> &vals);
 		Task& createTask(const std::string &func, std::vector<Dat *> dat);
 		Task& createTask(const std::string &func, std::vector<Dat *> dat,

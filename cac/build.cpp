@@ -36,10 +36,21 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, Task& task)
 
     std::vector<Value> args;
     for (Dat *dat : task.dats) {
+#if 1
       args.push_back(dat->impl->allocOp);
+#else
+      auto memrefTy = MemRefType::get({dat->rows, dat->cols}, elemTy);
+      auto halideBuff = builder.create<HalideBuffCastOp>(loc, dat->impl->allocOp);
+      args.push_back(halideBuff);
+#endif
     }
+#if 0
     auto kernOp = builder.create<toy::KernelOp>(builder.getUnknownLoc(),
       ArrayRef<Type>{}, ValueRange(args), ArrayRef<NamedAttribute>{funcNAttr});
+#else
+    auto kernOp = builder.create<toy::HalideKernelOp>(builder.getUnknownLoc(),
+      ArrayRef<Type>{}, ValueRange(args), ArrayRef<NamedAttribute>{funcNAttr});
+#endif
 
     for (Dat *dat : task.dats) {
       builder.create<toy::PrintOp>(builder.getUnknownLoc(), dat->impl->allocOp);
@@ -74,6 +85,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
     dat->impl->allocOp = builder.create<AllocOp>(loc, memrefTy);
 
     // Load constant values if any were given
+#if 1
     if (dat->vals.size() > 0) {
       // Copied from lowering of ConstantOp
 
@@ -122,6 +134,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
       // Start the element storing recursion from the first dimension.
       storeElements(/*dimension=*/0);
     }
+#endif
   }
 
   // Invoke the kernel for each task.

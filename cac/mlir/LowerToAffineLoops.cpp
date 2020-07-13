@@ -293,6 +293,9 @@ void ToyToAffineLoweringPass::runOnFunction() {
   target.addIllegalDialect<toy::ToyDialect>();
   target.addLegalOp<toy::PrintOp>();
   target.addLegalOp<toy::KernelOp>();
+#if 1
+  target.addLegalOp<toy::HalideKernelOp>();
+#endif
 
   // Now that the conversion target has been defined, we just need to provide
   // the set of patterns that will lower the Toy operations.
@@ -303,8 +306,10 @@ void ToyToAffineLoweringPass::runOnFunction() {
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`
   // operations were not converted successfully.
-  if (failed(applyPartialConversion(getFunction(), target, patterns)))
+  if (failed(applyPartialConversion(getFunction(), target, patterns))) {
+    getFunction().dump();
     signalPassFailure();
+  }
 }
 
 /// Create a pass for lowering operations in the `Affine` and `Std` dialects,

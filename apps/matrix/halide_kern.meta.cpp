@@ -32,10 +32,18 @@ public:
     // member variables. They'll appear in the signature of our generated
     // function in the same order as we declare them.
     Input<uint8_t> offset{"offset"};
+#if 0
     Input<Buffer<uint8_t>> input{"input", 2};
+#else
+    Input<Buffer<double>> input{"input", 2};
+#endif
 
     // We also declare the Outputs as public member variables.
+#if 0
     Output<Buffer<uint8_t>> brighter{"brighter", 2};
+#else
+    Output<Buffer<double>> brighter{"brighter", 2};
+#endif
 
     // Typically you declare your Vars at this scope as well, so that
     // they can be used in any helper methods you add later.
@@ -50,7 +58,7 @@ public:
         brighter(x, y) = input(x, y) + offset;
 
         // Schedule it.
-        brighter.vectorize(x, 16).parallel(y);
+        //brighter.vectorize(x, 16).parallel(y);
     }
 };
 
