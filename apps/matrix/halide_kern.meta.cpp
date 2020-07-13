@@ -32,10 +32,10 @@ public:
     // member variables. They'll appear in the signature of our generated
     // function in the same order as we declare them.
     Input<uint8_t> offset{"offset"};
-    Input<Buffer<uint8_t>> input{"input", 2};
+    Input<Buffer<double>> input{"input", 2};
 
     // We also declare the Outputs as public member variables.
-    Output<Buffer<uint8_t>> brighter{"brighter", 2};
+    Output<Buffer<double>> brighter{"brighter", 2};
 
     // Typically you declare your Vars at this scope as well, so that
     // they can be used in any helper methods you add later.
