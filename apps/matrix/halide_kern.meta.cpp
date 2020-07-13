@@ -50,7 +50,7 @@ public:
         brighter(x, y) = input(x, y) + offset;
 
         // Schedule it.
-        brighter.vectorize(x, 16).parallel(y);
+        // brighter.vectorize(x, 16).parallel(y);
     }
 };
 
