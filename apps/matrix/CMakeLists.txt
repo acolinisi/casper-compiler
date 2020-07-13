@@ -17,7 +17,8 @@ add_library(kern kern.c)
 add_executable(halide_kern.meta halide_kern.meta.cpp)
 target_link_libraries(halide_kern.meta PRIVATE Halide::Generator)
 add_halide_library(halide_bright FROM halide_kern.meta
-                   STMT halide_bright_STMT)
+                   STMT halide_bright_STMT
+                   LLVM_ASSEMBLY halide_bright_LLVM_ASSEMBLY)
 
 # Run the meta-program
 
