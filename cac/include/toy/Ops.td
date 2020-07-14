@@ -213,6 +213,24 @@ def KernelOp : Toy_Op<"kernel"> {
   let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
 }
 
+def HalideKernelOp : Toy_Op<"halide_kernel"> {
+  let summary = "invoke a Halide kernel function";
+  let description = [{
+    Invoke a kernel function defined by a Halide pipeline, that has
+      been compiled by a generator and linked into the final executable.
+  }];
+
+  // We also allow a F64MemRef to enable interop during partial lowering.
+  // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
+  let arguments = (ins
+      Variadic<AnyTypeOf<[F64Tensor, F64MemRef]>>:$input,
+      //Variadic<AnyTypeOf<[F64Tensor, F64HalideBuf]>>:$input,
+      StrAttr:$func
+  );
+
+  let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
+}
+
 def ReshapeOp : Toy_Op<"reshape", [NoSideEffect]> {
   let summary = "tensor reshape operation";
   let description = [{

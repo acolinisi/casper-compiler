@@ -21,10 +21,16 @@ int main(int argc, char **argv) {
 	};
 	Dat* matB = &tg.createDat(3, 2, matValsB);
 
-	Task& task_inv = tg.createTask("mat_invert", {matA}, {});
-	Task& task_abs = tg.createTask("mat_abs", {matB}, {});
+	Task& task_inv = tg.createTask(CKernel("mat_invert"), {matA});
+	Task& task_abs = tg.createTask(CKernel("mat_abs"), {matB});
 
-	Task& task_add = tg.createTask("mat_add", {matA, matB}, {&task_inv, &task_abs});
+	Task& task_add = tg.createTask(CKernel("mat_add"), {matA, matB},
+			{&task_inv, &task_abs});
+
+	Dat *matC = &tg.createDat(3, 2);
+	// TODO: pass offset param (hardcoded to 1)
+	Task& task_bright = tg.createTask(HalideKernel("halide_bright"),
+			{matA, matC}, {&task_add});
 
 	Executable exec(tg);
 	return exec.emitLLVMIR(); // to stderr

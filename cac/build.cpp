@@ -38,8 +38,19 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, Task& task)
     for (Dat *dat : task.dats) {
       args.push_back(dat->impl->allocOp);
     }
-    auto kernOp = builder.create<toy::KernelOp>(builder.getUnknownLoc(),
-      ArrayRef<Type>{}, ValueRange(args), ArrayRef<NamedAttribute>{funcNAttr});
+
+    // We want TaskGraph to be decoupled from compilation implementation, so
+    // we can't put these actions into a virtual method on the task objects.
+    if (task.type == Task::Halide) {
+	builder.create<toy::HalideKernelOp>(builder.getUnknownLoc(),
+	ArrayRef<Type>{}, ValueRange(args), ArrayRef<NamedAttribute>{funcNAttr});
+    } else if (task.type == Task::C) {
+	builder.create<toy::KernelOp>(builder.getUnknownLoc(),
+	ArrayRef<Type>{}, ValueRange(args), ArrayRef<NamedAttribute>{funcNAttr});
+    } else {
+      // TODO: figure out failure propagation
+      assert("unsupported task type");
+    }
 
     for (Dat *dat : task.dats) {
       builder.create<toy::PrintOp>(builder.getUnknownLoc(), dat->impl->allocOp);

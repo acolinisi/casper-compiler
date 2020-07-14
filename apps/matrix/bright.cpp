@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv) {
 
-	Halide::Runtime::Buffer<double> input(3, 2), output(3, 2);
+	Halide::Runtime::Buffer<double> input(2, 3), output(2, 3);
 	int offset = 0;
 	struct halide_buffer_t *input_buf =
 		static_cast<struct halide_buffer_t *>(input);
