@@ -22,9 +22,7 @@ add_halide_library(halide_bright FROM halide_kern.meta
 
 # Run the meta-program
 
-# Note: run twice, the first time just to dump the compiled output
 add_custom_command(OUTPUT matrix.ll
-  COMMAND matrix.meta
   COMMAND matrix.meta 2> matrix.ll
   DEPENDS matrix.meta)
 
