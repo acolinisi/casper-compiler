@@ -356,7 +356,6 @@ public:
     auto llvmI32Ty = LLVM::LLVMType::getInt32Ty(llvmDialect);
 
     for (auto &operand : operands) {
-      printf("OPERAND!!!\n");
       auto operTy = operand.getType();
       if (operTy.isa<IntegerType>() || operTy.isa<FloatType>()) {
         argTypes.push_back(typeConverter->convertType(operTy)
