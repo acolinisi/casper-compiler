@@ -19,6 +19,9 @@ target_link_libraries(halide_kern.meta PRIVATE Halide::Generator)
 add_halide_library(halide_bright FROM halide_kern.meta
                    STMT halide_bright_STMT
                    LLVM_ASSEMBLY halide_bright_LLVM_ASSEMBLY)
+add_halide_library(halide_blur FROM halide_kern.meta
+                   STMT halide_blur_STMT
+                   LLVM_ASSEMBLY halide_blur_LLVM_ASSEMBLY)
 
 # Run the meta-program
 
@@ -38,7 +41,7 @@ add_executable(matrix
   ${CMAKE_CURRENT_BINARY_DIR}/matrix.o
 )
 set_target_properties(matrix PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(matrix kern halide_bright)
+target_link_libraries(matrix kern halide_bright halide_blur)
 
 # Run the target program (test target)
 
