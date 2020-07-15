@@ -9,50 +9,33 @@ namespace cac {
 
 	// Decouple the task graph from compilation implementation:
 	// prevent the inclusion of LLVM headers into metaprograms.
+	// We could add accessors to the Value types for the user (that would
+	// forward to the impl objects), but not needed so far.
+	// All Value objects should be constructed only via factory methods in
+	// TaskGraph class.
 	class ValueImpl;
 	class ScalarImpl;
-
-	// TODO: move all fields to impl
+	class DatImpl;
 
 	class Value {
 	public:
-		// Want to decouple TaskGraph from implementation of compilation,
-		// so can't put compilation functionality into virtual methods.
-		enum ValueType {
-			Scalar,
-			Dat,
-		};
-	public:
-		Value(enum ValueType type, ValueImpl *impl);
-	public:
-		enum ValueType type;
+		Value(ValueImpl *impl);
+		virtual ~Value();
+		ValueImpl *getImpl();
+	protected:
 		ValueImpl *impl;
 	};
 
 	class Dat : public Value {
 	public:
-		Dat(int rows, int cols, const std::vector<double> &vals);
-		~Dat();
-	public:
-		const int rows, cols;
-		std::vector<double> vals;
+		Dat(DatImpl *impl);
+		DatImpl *getImpl();
 	};
 
 	class Scalar : public Value {
 	public:
-		// We want to decouple TaskGraph data structure from implementation of
-		// compilation, so need to let compiler ask what type objects are (can't
-		// put compilation functionality into virtual methods of said objects).
-		enum ScalarType {
-			Int,
-			Float,
-		};
-	public:
-		Scalar(enum ScalarType type, bool initialized, ScalarImpl *impl);
-	public:
-		enum ScalarType type;
-		bool initialized;
-		ScalarImpl *impl;
+		Scalar(ScalarImpl *impl);
+		ScalarImpl *getImpl();
 	};
 
 	class IntScalar : public Scalar {
@@ -61,12 +44,9 @@ namespace cac {
 		IntScalar(uint8_t width, uint64_t v);
 	};
 
-	// TODO: Hide this from user
+	// Could hide implementation in impl
 	class Task {
 	public:
-		// We want to decouple TaskGraph data structure from implementation of
-		// compilation, so we have to disambiguate task types explicitly (can't
-		// put compilation functionality into virtual methods).
 		enum TaskType {
 			Halide,
 			C

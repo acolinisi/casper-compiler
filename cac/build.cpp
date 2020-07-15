@@ -34,7 +34,7 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task)
 
     std::vector<Value> args;
     for (cac::Value *val : task.args) {
-      args.push_back(val->impl->ref);
+      args.push_back(val->getImpl()->ref);
     }
 
     // We want TaskGraph to be decoupled from compilation implementation, so
@@ -57,8 +57,9 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task)
     }
 
     for (cac::Value *val : task.args) {
-      if (val->type == cac::Value::Dat)
-	builder.create<toy::PrintOp>(builder.getUnknownLoc(), val->impl->ref);
+      auto valImpl = val->getImpl();
+      if (valImpl->type == cac::ValueImpl::Dat)
+	builder.create<toy::PrintOp>(builder.getUnknownLoc(), valImpl->ref);
       // TODO: print for scalars
     }
   } else {
@@ -88,40 +89,42 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
   // and deallocate them at the end (we don't track lifetime of buffers).
   for (auto& val : tg.values) {
     // TODO: switch to polymorphism in Impl types? each can allocate itself
-    switch (val->type) {
-    case cac::Value::Scalar: {
+    switch (val->getImpl()->type) {
+    case cac::ValueImpl::Scalar: {
       cac::Scalar *scalar = static_cast<cac::Scalar*>(val.get());
+      auto scalarImpl = scalar->getImpl();
       // Allocate on the stack, pass to kernel by value.
       // TODO: stay in std dialect! Have to go down to LLVM types because the
       // alloca in MLIR std dialect is for memrefs only (?).
-      auto sTy = scalar->impl->getLLVMType(builder, llvmDialect);
-      auto sStdTy = scalar->impl->getType(builder);
+      auto sTy = scalarImpl->getLLVMType(builder, llvmDialect);
+      auto sStdTy = scalarImpl->getType(builder);
       auto idxTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
       Value one = builder.create<LLVM::ConstantOp>(loc, idxTy,
 	  builder.getIntegerAttr(idxTy, 1));
       auto sPtr = builder.create<LLVM::AllocaOp>(loc, sTy.getPointerTo(),
 	  one, /*align=*/ 0);
 
-      if (scalar->initialized) {
+      if (scalarImpl->initialized) {
 	auto initVal = builder.create<LLVM::ConstantOp>(loc, sTy,
-	    scalar->impl->getInitValueAttr(builder, llvmDialect));
+	    scalarImpl->getInitValueAttr(builder, llvmDialect));
 	builder.create<LLVM::StoreOp>(loc, initVal, sPtr);
       }
       auto loaded = builder.create<LLVM::LoadOp>(loc, sPtr);
       // TODO: It's ridiculous to go LLVM->std here, we should stay in std, but
       // how to allocate a scalar in std? (alloca is only for memref? wtf)
-      scalar->impl->ref = builder.create<LLVM::DialectCastOp>(loc,
+      scalarImpl->ref = builder.create<LLVM::DialectCastOp>(loc,
 	  sStdTy, loaded);
       break;
     }
-    case cac::Value::Dat: {
+    case cac::ValueImpl::Dat: {
       cac::Dat *dat = static_cast<cac::Dat*>(val.get());
+      auto datImpl = dat->getImpl();
       auto elemTy = builder.getF64Type();
-      auto memrefTy = MemRefType::get({dat->rows, dat->cols}, elemTy);
-      dat->impl->ref = builder.create<AllocOp>(loc, memrefTy);
+      auto memrefTy = MemRefType::get({datImpl->rows, datImpl->cols}, elemTy);
+      datImpl->ref = builder.create<AllocOp>(loc, memrefTy);
 
       // Load constant values if any were given
-      if (dat->vals.size() > 0) {
+      if (datImpl->vals.size() > 0) {
 	// Copied from lowering of ConstantOp
 
 	// We will be generating constant indices up-to the largest dimension.
@@ -144,7 +147,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
 	// generating a store when the recursion hits the base case.
 	SmallVector<Value, 2> indices;
 	//auto valueIt = constantValue.getValues<FloatAttr>().begin();
-	auto valueIt = dat->vals.begin();
+	auto valueIt = datImpl->vals.begin();
 	std::function<void(uint64_t)> storeElements = [&](uint64_t dimension) {
 	  // The last dimension is the base case of the recursion, at this point
 	  // we store the element at the given index.
@@ -152,8 +155,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
 	    auto floatAttr = FloatAttr::get(elemTy, *valueIt++);
 	    builder.create<AffineStoreOp>(
 		loc, builder.create<ConstantOp>(loc, floatAttr),
-		dat->impl->ref,
-		llvm::makeArrayRef(indices));
+		datImpl->ref, llvm::makeArrayRef(indices));
 	    return;
 	  }
 

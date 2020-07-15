@@ -7,16 +7,34 @@ namespace cac {
 
 class ValueImpl {
 public:
-	mlir::Value ref;
+  enum ValueType {
+    Scalar,
+    Dat,
+  };
+public:
+  ValueImpl(enum ValueType type);
+  virtual ~ValueImpl();
+public:
+  enum ValueType type;
+  mlir::Value ref;
 };
 
 class ScalarImpl : public ValueImpl {
 public:
-	virtual mlir::Type getType(mlir::OpBuilder &builder) = 0;
-	virtual mlir::LLVM::LLVMType getLLVMType(mlir::OpBuilder &builder,
-	    mlir::LLVM::LLVMDialect *llvmDialect) = 0;
-	virtual mlir::Attribute getInitValueAttr(mlir::OpBuilder &builder,
-	    mlir::LLVM::LLVMDialect *llvmDialect) = 0;
+  enum ScalarType {
+    Int,
+    Float,
+  };
+public:
+  ScalarImpl(enum ScalarType type, bool initialized);
+  virtual mlir::Type getType(mlir::OpBuilder &builder) = 0;
+  virtual mlir::LLVM::LLVMType getLLVMType(mlir::OpBuilder &builder,
+      mlir::LLVM::LLVMDialect *llvmDialect) = 0;
+  virtual mlir::Attribute getInitValueAttr(mlir::OpBuilder &builder,
+      mlir::LLVM::LLVMDialect *llvmDialect) = 0;
+public:
+  enum ScalarType type;
+  const bool initialized;
 };
 
 class IntScalarImpl : public ScalarImpl {
@@ -30,12 +48,17 @@ public:
 	virtual mlir::Attribute getInitValueAttr(mlir::OpBuilder &builder,
 	    mlir::LLVM::LLVMDialect *llvmDialect);
 public:
-  // Owner class tracks whether value initialized
-  const uint64_t v; // type large enough for max width
   const uint8_t width;
+  const uint64_t v; // type large enough for max width
 };
 
-class DatImpl : public ValueImpl { };
+class DatImpl : public ValueImpl {
+public:
+  DatImpl(int rows, int cols, const std::vector<double> &vals);
+public:
+  const int rows, cols;
+  std::vector<double> vals;
+};
 
 } // nameaspace cac
 
