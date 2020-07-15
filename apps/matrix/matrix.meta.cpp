@@ -28,9 +28,9 @@ int main(int argc, char **argv) {
 			{&task_inv, &task_abs});
 
 	Dat *matC = &tg.createDat(3, 2);
-	// TODO: pass offset param (hardcoded to 1)
+	Scalar *offset = &tg.createIntScalar(/* width */ 8, 2);
 	Task& task_bright = tg.createTask(HalideKernel("halide_bright"),
-			{matA, matC}, {&task_add});
+			{offset, matA, matC}, {&task_add});
 
 	Executable exec(tg);
 	return exec.emitLLVMIR(); // to stderr

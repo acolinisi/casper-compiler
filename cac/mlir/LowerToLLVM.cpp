@@ -333,8 +333,6 @@ public:
                   ConversionPatternRewriter &rewriter) const override {
     toy::HalideKernelOp opx = llvm::dyn_cast<toy::HalideKernelOp>(op);
 
-    auto memRefType = (*op->operand_type_begin()).cast<MemRefType>();
-    auto memRefShape = memRefType.getShape();
     auto loc = op->getLoc();
     auto *llvmDialect =
         op->getContext()->getRegisteredDialect<LLVM::LLVMDialect>();
@@ -357,178 +355,183 @@ public:
     auto llvmI16Ty = LLVM::LLVMType::getInt16Ty(llvmDialect);
     auto llvmI32Ty = LLVM::LLVMType::getInt32Ty(llvmDialect);
 
-    // TODO: offset arg: this is a non-dat arg of the Halide pipeline
-    //       pass via attributes?
-    Value one = rewriter.create<LLVM::ConstantOp>(loc,
-        llvmI8Ty, rewriter.getI8IntegerAttr(1));
-    argTypes.push_back(llvmI8Ty);
-    argVals.push_back(one);
-
     for (auto &operand : operands) {
+      printf("OPERAND!!!\n");
+      auto operTy = operand.getType();
+      if (operTy.isa<IntegerType>() || operTy.isa<FloatType>()) {
+        argTypes.push_back(typeConverter->convertType(operTy)
+          .cast<LLVM::LLVMType>());
+        argVals.push_back(operand);
+      } else if (operTy.isa<MemRefType>()) {
 
-      // memref is not yet converted to struct: this has something
-      // to do with region signature conversion (I think that unlike
-      // our first-step lowering (see comments in pass code), the second-step
-      // (Standard->LLVM) lowering does trigger this region signature
-      // conversion, so if the pattern would run in that latter context,
-      // then the types would already be structs, not memrefs.
+        // memref is not yet converted to struct: this has something
+        // to do with region signature conversion (I think that unlike
+        // our first-step lowering (see comments in pass code), the second-step
+        // (Standard->LLVM) lowering does trigger this region signature
+        // conversion, so if the pattern would run in that latter context,
+        // then the types would already be structs, not memrefs.
 
-      auto structTy = typeConverter->convertType(operand.getType()).
-        cast<LLVM::LLVMType>();
-      auto ptrTy = structTy.getPointerTo();
+        auto structTy = typeConverter->convertType(operand.getType()).
+          cast<LLVM::LLVMType>();
+        auto ptrTy = structTy.getPointerTo();
 
-      auto memRefType = operand.getType().cast<MemRefType>();
-      auto memRefShape = memRefType.getShape();
-      auto dims = memRefShape.size();
+        auto memRefType = operand.getType().cast<MemRefType>();
+        auto memRefShape = memRefType.getShape();
+        auto dims = memRefShape.size();
 
-      Value one = rewriter.create<LLVM::ConstantOp>(loc,
-          typeConverter->convertType(rewriter.getIndexType()),
-          rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
-      Value allocated =
-          rewriter.create<LLVM::AllocaOp>(loc, ptrTy, one, /*alignment=*/0);
+        Value one = rewriter.create<LLVM::ConstantOp>(loc,
+            typeConverter->convertType(rewriter.getIndexType()),
+            rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
+        Value allocated =
+            rewriter.create<LLVM::AllocaOp>(loc, ptrTy, one, /*alignment=*/0);
 
-      Value dimsVal = rewriter.create<LLVM::ConstantOp>(loc,
-          llvmI32Ty, rewriter.getI32IntegerAttr(dims));
+        Value dimsVal = rewriter.create<LLVM::ConstantOp>(loc,
+            llvmI32Ty, rewriter.getI32IntegerAttr(dims));
 
-      auto dimPtrTy = structTy.getStructElementType(kHalideBuffDim);
-      auto dimElemTy = dimPtrTy.getPointerElementTy();
-      auto dimArrTy = LLVM::LLVMType::getArrayTy(dimElemTy, dims);
+        auto dimPtrTy = structTy.getStructElementType(kHalideBuffDim);
+        auto dimElemTy = dimPtrTy.getPointerElementTy();
+        auto dimArrTy = LLVM::LLVMType::getArrayTy(dimElemTy, dims);
 
-      Value dimArrPtr = rewriter.create<LLVM::AllocaOp>(loc,
-          dimArrTy.getPointerTo(), one, /*alignment=*/0);
-      auto dimArrL = rewriter.create<LLVM::LoadOp>(loc, dimArrPtr);
+        Value dimArrPtr = rewriter.create<LLVM::AllocaOp>(loc,
+            dimArrTy.getPointerTo(), one, /*alignment=*/0);
+        auto dimArrL = rewriter.create<LLVM::LoadOp>(loc, dimArrPtr);
 
-      // TODO: HalideBuffDescriptor + StructBuilder
+        // TODO: HalideBuffDescriptor + StructBuilder
 
-      auto descStructL = rewriter.create<LLVM::LoadOp>(loc, allocated);
-      auto llvmI64Ty = LLVM::LLVMType::getInt64Ty(llvmDialect);
+        auto descStructL = rewriter.create<LLVM::LoadOp>(loc, allocated);
+        auto llvmI64Ty = LLVM::LLVMType::getInt64Ty(llvmDialect);
 
-      Value zero64 = rewriter.create<LLVM::ConstantOp>(loc,
-          llvmI64Ty, rewriter.getI64IntegerAttr(0));
-      Value zero32 = rewriter.create<LLVM::ConstantOp>(loc,
-          llvmI32Ty, rewriter.getI64IntegerAttr(0));
+        Value zero64 = rewriter.create<LLVM::ConstantOp>(loc,
+            llvmI64Ty, rewriter.getI64IntegerAttr(0));
+        Value zero32 = rewriter.create<LLVM::ConstantOp>(loc,
+            llvmI32Ty, rewriter.getI64IntegerAttr(0));
 
-      auto descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
-          descStructL, zero64, rewriter.getI64ArrayAttr(kHalideBuffDevice));
-      auto nullPtr = rewriter.create<LLVM::NullOp>(loc,
-          llvmI8Ty.getPointerTo());
-      descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
-          descStruct, nullPtr,
-          rewriter.getI64ArrayAttr(kHalideBuffDeviceInterface));
+        auto descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
+            descStructL, zero64, rewriter.getI64ArrayAttr(kHalideBuffDevice));
+        auto nullPtr = rewriter.create<LLVM::NullOp>(loc,
+            llvmI8Ty.getPointerTo());
+        descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
+            descStruct, nullPtr,
+            rewriter.getI64ArrayAttr(kHalideBuffDeviceInterface));
 
-      // We need a real struct object, not the abstract memref type in order
-      // to extract the runtime information (shape, etc). We could extract the
-      // compiled-time info from the memref, but that does not include the
-      // pointer to the allocated data array.
-      auto memDescTy = typeConverter->convertType(operand.getType());
+        // We need a real struct object, not the abstract memref type in order
+        // to extract the runtime information (shape, etc). We could extract the
+        // compiled-time info from the memref, but that does not include the
+        // pointer to the allocated data array.
+        auto memDescTy = typeConverter->convertType(operand.getType());
 
-      static constexpr unsigned kAllocatedPtrPosInMemRefDescriptor = 0;
-      auto dataPtr = rewriter.create<LLVM::ExtractValueOp>(loc,
-          memDescTy, operand,
-          rewriter.getI64ArrayAttr(kAllocatedPtrPosInMemRefDescriptor));
+        static constexpr unsigned kAllocatedPtrPosInMemRefDescriptor = 0;
+        auto dataPtr = rewriter.create<LLVM::ExtractValueOp>(loc,
+            memDescTy, operand,
+            rewriter.getI64ArrayAttr(kAllocatedPtrPosInMemRefDescriptor));
 
-      // Element type in MemRef struct is strongly typed, but in
-      // struct halide_buffer_t, it is not (generic uint8_t * + enum).
-      // So, cast (in LLVM need two steps): [any]* -> int64_t -> int8_t*
-      auto dataPtrI = rewriter.create<LLVM::PtrToIntOp>(loc,
-          llvmI64Ty, dataPtr);
-      auto dataPtrP = rewriter.create<LLVM::IntToPtrOp>(loc,
-          llvmI8Ty.getPointerTo(), dataPtrI);
+        // Element type in MemRef struct is strongly typed, but in
+        // struct halide_buffer_t, it is not (generic uint8_t * + enum).
+        // So, cast (in LLVM need two steps): [any]* -> int64_t -> int8_t*
+        auto dataPtrI = rewriter.create<LLVM::PtrToIntOp>(loc,
+            llvmI64Ty, dataPtr);
+        auto dataPtrP = rewriter.create<LLVM::IntToPtrOp>(loc,
+            llvmI8Ty.getPointerTo(), dataPtrI);
 
-      descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
-          descStruct, dataPtrP, rewriter.getI64ArrayAttr(kHalideBuffHost));
+        descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
+            descStruct, dataPtrP, rewriter.getI64ArrayAttr(kHalideBuffHost));
 
-      descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
-          descStruct, zero64, rewriter.getI64ArrayAttr(kHalideBuffFlags));
+        descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
+            descStruct, zero64, rewriter.getI64ArrayAttr(kHalideBuffFlags));
 
-      uint8_t elemTypeCode;
-      uint8_t elemTypeBits;
-      uint16_t elemTypeLanes = 1; // default to scalar
+        uint8_t elemTypeCode;
+        uint8_t elemTypeBits;
+        uint16_t elemTypeLanes = 1; // default to scalar
 
-      auto elemType = memRefType.getElementType();
-      if (elemType.isa<FloatType>()) {
-        elemTypeCode = kHalideTypeFloat;
-        elemTypeBits = elemType.cast<FloatType>().getWidth();
-      } else if (elemType.isa<IntegerType>()) {
-        auto intTy = elemType.cast<IntegerType>();
-        elemTypeCode = intTy.isSigned() ?  kHalideTypeInt : kHalideTypeUInt;
-        elemTypeBits = intTy.getWidth();
-      } else { // TODO: memref of vector element type possible?
-        op->emitError("cannot lower memref of unsupported element type");
+        auto elemType = memRefType.getElementType();
+        if (elemType.isa<FloatType>()) {
+          elemTypeCode = kHalideTypeFloat;
+          elemTypeBits = elemType.cast<FloatType>().getWidth();
+        } else if (elemType.isa<IntegerType>()) {
+          auto intTy = elemType.cast<IntegerType>();
+          elemTypeCode = intTy.isSigned() ?  kHalideTypeInt : kHalideTypeUInt;
+          elemTypeBits = intTy.getWidth();
+        } else { // TODO: memref of vector element type possible?
+          op->emitError("cannot lower memref of unsupported element type");
+          return failure();
+        }
+
+        Value elemTypeCodeVal = rewriter.create<LLVM::ConstantOp>(loc,
+            llvmI8Ty, rewriter.getI8IntegerAttr(elemTypeCode));
+        descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
+            descStruct, elemTypeCodeVal, rewriter.getI32ArrayAttr(
+              {kHalideBuffType, kHalideBuffTypeCode}));
+        Value elemTypeBitsVal = rewriter.create<LLVM::ConstantOp>(loc,
+            llvmI8Ty, rewriter.getI8IntegerAttr(elemTypeBits));
+        descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
+            descStruct, elemTypeBitsVal, rewriter.getI32ArrayAttr(
+              {kHalideBuffType, kHalideBuffTypeBits}));
+        Value elemTypeLanesVal = rewriter.create<LLVM::ConstantOp>(loc,
+            llvmI16Ty, rewriter.getI16IntegerAttr(elemTypeLanes));
+        descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
+            descStruct, elemTypeLanesVal, rewriter.getI32ArrayAttr(
+              {kHalideBuffType, kHalideBuffTypeLanes}));
+
+        int x_kHalideBuffDimensions = kHalideBuffDimensions;
+        descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
+            descStruct, dimsVal,
+            rewriter.getI32ArrayAttr(x_kHalideBuffDimensions));
+
+      // strides: note that buffers declared when the Halide pipeline is
+      // defined need to have strides that match these memref strides (which
+      // we set on the runtime Halide buffer descriptor below).
+      int64_t offset; // TODO: figure out what this is and how to translate
+      SmallVector<int64_t, 4> strides;
+      bool strideSuccess = succeeded(getStridesAndOffset(memRefType,
+            strides, offset));
+      assert(strideSuccess && "no stride info in memref type");
+
+      Value dimArr = dimArrL;
+
+      for (int i = 0; i < dims; ++i) {
+          // TODO: is this related to offset? (there is one offest, but a
+          // min value per dimension... so not sure)
+          Value minVal = zero32; // TODO
+          dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
+              minVal, rewriter.getI32ArrayAttr(
+                {i, kHalideBuffDimMin}));
+
+          Value extentVal = rewriter.create<LLVM::ConstantOp>(loc,
+            llvmI32Ty, rewriter.getI32IntegerAttr(memRefShape[i]));
+          dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
+              extentVal, rewriter.getI32ArrayAttr(
+                {i, kHalideBuffDimExtent}));
+
+          Value strideVal = rewriter.create<LLVM::ConstantOp>(loc,
+            llvmI32Ty, rewriter.getI32IntegerAttr(strides[i]));
+          dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
+              strideVal, rewriter.getI32ArrayAttr(
+                {i, kHalideBuffDimStride}));
+
+          dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
+              zero32, rewriter.getI32ArrayAttr(
+                {i, kHalideBuffDimFlags}));
+        }
+
+        rewriter.create<LLVM::StoreOp>(loc, dimArr, dimArrPtr);
+
+        auto dimAddr = rewriter.create<LLVM::GEPOp>(loc, dimArrTy, dimArrPtr,
+            ValueRange({zero32, zero32}));
+        descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy, descStruct,
+            dimAddr, rewriter.getI64ArrayAttr(kHalideBuffDim));
+
+        dimArr = rewriter.create<LLVM::InsertValueOp>(loc, structTy, descStruct,
+            nullPtr, rewriter.getI64ArrayAttr(kHalideBuffPadding));
+
+        rewriter.create<LLVM::StoreOp>(loc, descStruct, allocated);
+
+        argTypes.push_back(ptrTy);
+        argVals.push_back(allocated);
+      } else {
+        // Should not happen, because argument type constraints in Ops.td
+        op->emitError("unsupported operand type");
         return failure();
       }
-
-      Value elemTypeCodeVal = rewriter.create<LLVM::ConstantOp>(loc,
-          llvmI8Ty, rewriter.getI8IntegerAttr(elemTypeCode));
-      descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
-          descStruct, elemTypeCodeVal, rewriter.getI32ArrayAttr(
-            {kHalideBuffType, kHalideBuffTypeCode}));
-      Value elemTypeBitsVal = rewriter.create<LLVM::ConstantOp>(loc,
-          llvmI8Ty, rewriter.getI8IntegerAttr(elemTypeBits));
-      descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
-          descStruct, elemTypeBitsVal, rewriter.getI32ArrayAttr(
-            {kHalideBuffType, kHalideBuffTypeBits}));
-      Value elemTypeLanesVal = rewriter.create<LLVM::ConstantOp>(loc,
-          llvmI16Ty, rewriter.getI16IntegerAttr(elemTypeLanes));
-      descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
-          descStruct, elemTypeLanesVal, rewriter.getI32ArrayAttr(
-            {kHalideBuffType, kHalideBuffTypeLanes}));
-
-      int x_kHalideBuffDimensions = kHalideBuffDimensions;
-      descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy,
-          descStruct, dimsVal,
-          rewriter.getI32ArrayAttr(x_kHalideBuffDimensions));
-
-    // strides: note that buffers declared when the Halide pipeline is
-    // defined need to have strides that match these memref strides (which
-    // we set on the runtime Halide buffer descriptor below).
-    int64_t offset; // TODO: figure out what this is and how to translate
-    SmallVector<int64_t, 4> strides;
-    bool strideSuccess = succeeded(getStridesAndOffset(memRefType,
-          strides, offset));
-    assert(strideSuccess && "no stride info in memref type");
-
-    Value dimArr = dimArrL;
-
-    for (int i = 0; i < dims; ++i) {
-        // TODO: is this related to offset? (there is one offest, but a
-        // min value per dimension... so not sure)
-        Value minVal = zero32; // TODO
-        dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
-            minVal, rewriter.getI32ArrayAttr(
-              {i, kHalideBuffDimMin}));
-
-        Value extentVal = rewriter.create<LLVM::ConstantOp>(loc,
-          llvmI32Ty, rewriter.getI32IntegerAttr(memRefShape[i]));
-        dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
-            extentVal, rewriter.getI32ArrayAttr(
-              {i, kHalideBuffDimExtent}));
-
-        Value strideVal = rewriter.create<LLVM::ConstantOp>(loc,
-          llvmI32Ty, rewriter.getI32IntegerAttr(strides[i]));
-        dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
-            strideVal, rewriter.getI32ArrayAttr(
-              {i, kHalideBuffDimStride}));
-
-        dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
-            zero32, rewriter.getI32ArrayAttr(
-              {i, kHalideBuffDimFlags}));
-      }
-
-      rewriter.create<LLVM::StoreOp>(loc, dimArr, dimArrPtr);
-
-      auto dimAddr = rewriter.create<LLVM::GEPOp>(loc, dimArrTy, dimArrPtr,
-          ValueRange({zero32, zero32}));
-      descStruct = rewriter.create<LLVM::InsertValueOp>(loc, structTy, descStruct,
-          dimAddr, rewriter.getI64ArrayAttr(kHalideBuffDim));
-
-      dimArr = rewriter.create<LLVM::InsertValueOp>(loc, structTy, descStruct,
-          nullPtr, rewriter.getI64ArrayAttr(kHalideBuffPadding));
-
-      rewriter.create<LLVM::StoreOp>(loc, descStruct, allocated);
-
-      argTypes.push_back(ptrTy);
-      argVals.push_back(allocated);
     }
 
     auto kernRef = getOrInsertKernFunc(rewriter, parentModule, func, argTypes,
@@ -602,6 +605,7 @@ void ToyToLLVMLoweringPass::runOnOperation() {
     target.addIllegalDialect<toy::ToyDialect>();
     target.addLegalOp<toy::PrintOp>();
     target.addLegalOp<toy::KernelOp>();
+    target.addLegalOp<LLVM::DialectCastOp>();
 
     ToyLLVMTypeConverter typeConverter(&getContext());
 

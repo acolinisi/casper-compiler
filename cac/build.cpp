@@ -1,6 +1,6 @@
 #include "Build.h"
 #include "TaskGraph.h"
-#include "DatImpl.h"
+#include "TaskGraphImpl.h"
 
 #include "toy/Dialect.h"
 
@@ -15,45 +15,51 @@
 #include "llvm/ADT/StringRef.h"
 
 using namespace mlir;
-using namespace cac;
 
 // Traverse the task graph in depth-first order
-void invokeKernels(OpBuilder &builder, MLIRContext &context, Task& task)
+void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task)
 {
   // Constant dat; TODO: support non-constant buffer
 
-  for (Task *dep : task.deps) {
+  for (cac::Task *dep : task.deps) {
     if (!dep->visited)
       invokeKernels(builder, context, *dep);
   }
 
-  // TODO: dats are re-used, so certainly wouldn't create for each task
-  if (task.dats.size() > 0) { // TODO: invoke even if there is no dat attached
+  if (task.args.size() > 0) { // TODO: invoke even if there is no dat attached
     // Invoke the kernel
     auto funcAttr = StringAttr::get(StringRef(task.func), &context);
     NamedAttribute funcNAttr(Identifier::get(StringRef("func"), &context),
 	funcAttr);
 
     std::vector<Value> args;
-    for (Dat *dat : task.dats) {
-      args.push_back(dat->impl->allocOp);
+    for (cac::Value *val : task.args) {
+      args.push_back(val->impl->ref);
     }
 
     // We want TaskGraph to be decoupled from compilation implementation, so
     // we can't put these actions into a virtual method on the task objects.
-    if (task.type == Task::Halide) {
+    // TODO: switch to polymorphism, while still decoupling using impl ptr?
+    switch (task.type) {
+    case cac::Task::Halide:
 	builder.create<toy::HalideKernelOp>(builder.getUnknownLoc(),
-	ArrayRef<Type>{}, ValueRange(args), ArrayRef<NamedAttribute>{funcNAttr});
-    } else if (task.type == Task::C) {
+	  ArrayRef<Type>{}, ValueRange(args),
+	  ArrayRef<NamedAttribute>{funcNAttr});
+	break;
+    case cac::Task::C:
 	builder.create<toy::KernelOp>(builder.getUnknownLoc(),
-	ArrayRef<Type>{}, ValueRange(args), ArrayRef<NamedAttribute>{funcNAttr});
-    } else {
+	  ArrayRef<Type>{}, ValueRange(args),
+	  ArrayRef<NamedAttribute>{funcNAttr});
+	break;
+    default:
       // TODO: figure out failure propagation
       assert("unsupported task type");
     }
 
-    for (Dat *dat : task.dats) {
-      builder.create<toy::PrintOp>(builder.getUnknownLoc(), dat->impl->allocOp);
+    for (cac::Value *val : task.args) {
+      if (val->type == cac::Value::Dat)
+	builder.create<toy::PrintOp>(builder.getUnknownLoc(), val->impl->ref);
+      // TODO: print for scalars
     }
   } else {
   }
@@ -68,6 +74,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
 
   OpBuilder builder(module->getBodyRegion());
   auto loc = builder.getUnknownLoc();
+  auto llvmDialect = context.getRegisteredDialect<LLVM::LLVMDialect>();
 
   // create main() function
   auto mainTy = FunctionType::get({}, {builder.getI32Type()}, &context);
@@ -79,59 +86,95 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
 
   // For now, we pre-allocate all data buffers, at the beginning of main()
   // and deallocate them at the end (we don't track lifetime of buffers).
-  for (auto& dat : tg.dats) {
-    auto elemTy = builder.getF64Type();
-    auto memrefTy = MemRefType::get({dat->rows, dat->cols}, elemTy);
-    dat->impl->allocOp = builder.create<AllocOp>(loc, memrefTy);
+  for (auto& val : tg.values) {
+    // TODO: switch to polymorphism in Impl types? each can allocate itself
+    switch (val->type) {
+    case cac::Value::Scalar: {
+      cac::Scalar *scalar = static_cast<cac::Scalar*>(val.get());
+      // Allocate on the stack, pass to kernel by value.
+      // TODO: stay in std dialect! Have to go down to LLVM types because the
+      // alloca in MLIR std dialect is for memrefs only (?).
+      auto sTy = scalar->impl->getLLVMType(builder, llvmDialect);
+      auto sStdTy = scalar->impl->getType(builder);
+      auto idxTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
+      Value one = builder.create<LLVM::ConstantOp>(loc, idxTy,
+	  builder.getIntegerAttr(idxTy, 1));
+      auto sPtr = builder.create<LLVM::AllocaOp>(loc, sTy.getPointerTo(),
+	  one, /*align=*/ 0);
 
-    // Load constant values if any were given
-    if (dat->vals.size() > 0) {
-      // Copied from lowering of ConstantOp
-
-      // We will be generating constant indices up-to the largest dimension.
-      // Create these constants up-front to avoid large amounts of redundant
-      // operations.
-      auto valueShape = memrefTy.getShape();
-      SmallVector<Value, 8> constantIndices;
-
-      if (!valueShape.empty()) {
-	for (auto i : llvm::seq<int64_t>(
-		0, *std::max_element(valueShape.begin(), valueShape.end())))
-	 constantIndices.push_back(builder.create<ConstantIndexOp>(loc, i));
-      } else {
-	// This is the case of a tensor of rank 0.
-	constantIndices.push_back(builder.create<ConstantIndexOp>(loc, 0));
+      if (scalar->initialized) {
+	auto initVal = builder.create<LLVM::ConstantOp>(loc, sTy,
+	    scalar->impl->getInitValueAttr(builder, llvmDialect));
+	builder.create<LLVM::StoreOp>(loc, initVal, sPtr);
       }
-      // The constant operation represents a multi-dimensional constant, so we
-      // will need to generate a store for each of the elements. The following
-      // functor recursively walks the dimensions of the constant shape,
-      // generating a store when the recursion hits the base case.
-      SmallVector<Value, 2> indices;
-      //auto valueIt = constantValue.getValues<FloatAttr>().begin();
-      auto valueIt = dat->vals.begin();
-      std::function<void(uint64_t)> storeElements = [&](uint64_t dimension) {
-	// The last dimension is the base case of the recursion, at this point
-	// we store the element at the given index.
-	if (dimension == valueShape.size()) {
-	  auto floatAttr = FloatAttr::get(elemTy, *valueIt++);
-	  builder.create<AffineStoreOp>(
-	      loc, builder.create<ConstantOp>(loc, floatAttr),
-	      dat->impl->allocOp,
-	      llvm::makeArrayRef(indices));
-	  return;
-	}
+      auto loaded = builder.create<LLVM::LoadOp>(loc, sPtr);
+      // TODO: It's ridiculous to go LLVM->std here, we should stay in std, but
+      // how to allocate a scalar in std? (alloca is only for memref? wtf)
+      scalar->impl->ref = builder.create<LLVM::DialectCastOp>(loc,
+	  sStdTy, loaded);
+      break;
+    }
+    case cac::Value::Dat: {
+      cac::Dat *dat = static_cast<cac::Dat*>(val.get());
+      auto elemTy = builder.getF64Type();
+      auto memrefTy = MemRefType::get({dat->rows, dat->cols}, elemTy);
+      dat->impl->ref = builder.create<AllocOp>(loc, memrefTy);
 
-	// Otherwise, iterate over the current dimension and add the indices to
-	// the list.
-	for (uint64_t i = 0, e = valueShape[dimension]; i != e; ++i) {
-	  indices.push_back(constantIndices[i]);
-	  storeElements(dimension + 1);
-	  indices.pop_back();
-	}
-      };
+      // Load constant values if any were given
+      if (dat->vals.size() > 0) {
+	// Copied from lowering of ConstantOp
 
-      // Start the element storing recursion from the first dimension.
-      storeElements(/*dimension=*/0);
+	// We will be generating constant indices up-to the largest dimension.
+	// Create these constants up-front to avoid large amounts of redundant
+	// operations.
+	auto valueShape = memrefTy.getShape();
+	SmallVector<Value, 8> constantIndices;
+
+	if (!valueShape.empty()) {
+	  for (auto i : llvm::seq<int64_t>(
+		  0, *std::max_element(valueShape.begin(), valueShape.end())))
+	   constantIndices.push_back(builder.create<ConstantIndexOp>(loc, i));
+	} else {
+	  // This is the case of a tensor of rank 0.
+	  constantIndices.push_back(builder.create<ConstantIndexOp>(loc, 0));
+	}
+	// The constant operation represents a multi-dimensional constant, so we
+	// will need to generate a store for each of the elements. The following
+	// functor recursively walks the dimensions of the constant shape,
+	// generating a store when the recursion hits the base case.
+	SmallVector<Value, 2> indices;
+	//auto valueIt = constantValue.getValues<FloatAttr>().begin();
+	auto valueIt = dat->vals.begin();
+	std::function<void(uint64_t)> storeElements = [&](uint64_t dimension) {
+	  // The last dimension is the base case of the recursion, at this point
+	  // we store the element at the given index.
+	  if (dimension == valueShape.size()) {
+	    auto floatAttr = FloatAttr::get(elemTy, *valueIt++);
+	    builder.create<AffineStoreOp>(
+		loc, builder.create<ConstantOp>(loc, floatAttr),
+		dat->impl->ref,
+		llvm::makeArrayRef(indices));
+	    return;
+	  }
+
+	  // Otherwise, iterate over the current dimension and add the indices to
+	  // the list.
+	  for (uint64_t i = 0, e = valueShape[dimension]; i != e; ++i) {
+	    indices.push_back(constantIndices[i]);
+	    storeElements(dimension + 1);
+	    indices.pop_back();
+	  }
+	};
+
+	// Start the element storing recursion from the first dimension.
+	storeElements(/*dimension=*/0);
+      }
+      break;
+    }
+    default:
+      // TODO: figure out error reporting
+      assert("unsupported value type");
+      return 1;
     }
   }
 
@@ -141,7 +184,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
   // For testing: process last-added task first.
   //for (auto rooti = tg.tasks.rbegin(); rooti != tg.tasks.rend(); ++rooti) {
   //  std::unique_ptr<Task>& root = *rooti;
-  for (std::unique_ptr<Task>& root : tg.tasks) {
+  for (std::unique_ptr<cac::Task>& root : tg.tasks) {
     if (!root->visited)
       invokeKernels(builder, context, *root);
   }

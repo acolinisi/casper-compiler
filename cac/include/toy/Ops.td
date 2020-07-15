@@ -15,6 +15,8 @@
 
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+// TODO: should need to go down to LLVM. We just need a alloc() for scalars!
+include "mlir/Dialect/LLVMIR/LLVMOpBase.td"
 include "toy/ShapeInferenceInterface.td"
 
 // Provide a definition of the 'toy' dialect in the ODS framework so that we
@@ -220,11 +222,9 @@ def HalideKernelOp : Toy_Op<"halide_kernel"> {
       been compiled by a generator and linked into the final executable.
   }];
 
-  // We also allow a F64MemRef to enable interop during partial lowering.
   // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
   let arguments = (ins
-      Variadic<AnyTypeOf<[F64Tensor, F64MemRef]>>:$input,
-      //Variadic<AnyTypeOf<[F64Tensor, F64HalideBuf]>>:$input,
+      Variadic<AnyTypeOf<[AnyTensor, AnyMemRef, AnyInteger, AnyFloat]>>:$input,
       StrAttr:$func
   );
 
