@@ -178,6 +178,9 @@ public:
 #if 0
             blur_y.split(y, y, yi, 8).parallel(y).vectorize(x, 8);
             blur_x.store_at(blur_y, y).compute_at(blur_y, yi).vectorize(x, 8);
+#else
+            blur_y.split(y, y, yi, 2).parallel(y).vectorize(x, 2);
+            blur_x.store_at(blur_y, y).compute_at(blur_y, yi).vectorize(x, 2);
 #endif
         }
 
