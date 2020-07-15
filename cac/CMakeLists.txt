@@ -18,6 +18,7 @@ add_llvm_library(cac
   build.cpp
   Executable.cpp
   TaskGraph.cpp
+  TaskGraphImpl.cpp
   parser/AST.cpp
   mlir/MLIRGen.cpp
   mlir/Dialect.cpp
