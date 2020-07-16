@@ -8,12 +8,12 @@ Dimensions are currently hardcoded to correspond to `casper.bmp` test image
   
     $ gdown -O apps/blur/casper.bmp https://drive.google.com/uc?id=1TgfuSwNMFSbzrbFT0-kSkoJlfhz8L088
 
-Build and run (in top-level directory of compiler repo):
+Copy to build directory (assumes you've built the compiler and example apps,
+see readme in compiler/ directory):
 
-    $ cd compiler/
-    $ mkdir build && cd build
-    $ cmake -DCMAKE_BUILD_TYPE=Release ..
-    $ make
-    $ cp ../apps/blur/casper.bmp apps/blur/
+    $ cp ../apps/blur/casper.bmp build/apps/blur/
+
+To run the app:
+
+    $ cd build
     $ make blur_run
-
