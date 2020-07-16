@@ -9,6 +9,12 @@ public:
     GeneratorParam<int> tile_x{"tile_x", /* 32 */ 1};  // X tile.
     GeneratorParam<int> tile_y{"tile_y", /* 8 */ 1};   // Y tile.
 
+    // TODO: name descriptively
+    GeneratorParam<int> p1{"p1", 1};
+    GeneratorParam<int> p2{"p2", 1};
+    GeneratorParam<int> p3{"p3", 1};
+    GeneratorParam<int> p4{"p4", 1};
+
     Input<Buffer<double>> input{"input", 2};
     Output<Buffer<double>> blur_y{"blur_y", 2};
 
@@ -39,21 +45,6 @@ public:
         Var x_vo("x_vo");
         Var y_i("y_i");
         Var y_o("y_o");
-
-#if 0
-        int power = 10;
-        int p1 = rand() % power + 1;
-        int p2 = rand() % power + 1;
-        int p3 = rand() % p2 + 1; // p2 > p3
-        int p4 = rand() % p3 + 1; // p3 > p4
-#else
-        int p1 = 1;
-        int p2 = 1;
-        //int p3 = 1 + 1; // p3 > p2
-        //int p4 = 1 + 1; // p4 > p3
-        int p3 = 1;
-        int p4 = 1;
-#endif
 
         int v1 = pow(2,p1);
         int v2 = pow(2,p2);

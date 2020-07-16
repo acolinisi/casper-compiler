@@ -39,12 +39,12 @@ function(casper_add_c_kern app)
 endfunction()
 
 # Add to app kernels written as Halide pipelines
-# Arguments: app_target GENERATORS gen... SOURCES source_file...
+# Arguments: app_target GENERATORS gen... SOURCES source_file... PARAMS p,...
 function(casper_add_halide_meta app)
 	cmake_parse_arguments(FARG
 		""
 		""
-		"GENERATORS;SOURCES" ${ARGN})
+		"GENERATORS;SOURCES;PARAMS" ${ARGN})
 
 	find_program(LLC llc REQUIRED DOC "LLVM IR compiler")
 
@@ -61,7 +61,8 @@ function(casper_add_halide_meta app)
 		# TODO: name library ${app}_kern_halide_X
 		add_halide_library(${gen} FROM ${app}.halide_meta
 						   STMT ${gen}_STMT
-						   LLVM_ASSEMBLY ${gen}_LLVM_ASSEMBLY)
+						   LLVM_ASSEMBLY ${gen}_LLVM_ASSEMBLY
+						   PARAMS ${FARG_PARAMS})
 		target_link_libraries(${app} ${gen})
 	endforeach()
 endfunction()
