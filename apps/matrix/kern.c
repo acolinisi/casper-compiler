@@ -7,7 +7,7 @@ void mat_abs(double *M_buf, double *M, int offset,
 
 	for (int i = 0; i < n; ++i) {
 		for (int j = 0; j < m; ++j) {
-			float v = M[i * s_n + j * s_m];
+			double v = M[i * s_n + j * s_m];
 			if (v < 0)
 				M[i * s_n + j * s_m] = -v;
 		}
