@@ -74,9 +74,10 @@ public:
         // are the strides used at compile time? Having to declare strides
         // here makes the kernel not generic across matrix sizes (at least
         // regarding the last n-1 dimensions).
-        input.dim(0).set_stride(4);
+        int mat_cols = 2; // sucks that not agnostic, but how else?
+        input.dim(0).set_stride(mat_cols);
         input.dim(1).set_stride(1);
-        brighter.dim(0).set_stride(4);
+        brighter.dim(0).set_stride(mat_cols);
         brighter.dim(1).set_stride(1);
     }
 };
