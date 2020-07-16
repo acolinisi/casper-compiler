@@ -12,6 +12,8 @@ public:
     Input<Buffer<double>> input{"input", 2};
     Output<Buffer<double>> blur_y{"blur_y", 2};
 
+    static const int BLUR_BOUNDARY = 2; /* depends on pipeline */
+
     void generate() {
         Func blur_x("blur_x");
         Var x("x"), y("y"), xi("xi"), yi("yi");
@@ -83,9 +85,10 @@ public:
 
         // Match mem layout to Casper Dat buffers (see comments in the other
         // generator)
-        input.dim(0).set_stride(4);
+        int img_width = 1695; // sucks that can't be agnostic, but how else?
+        input.dim(0).set_stride(img_width);
         input.dim(1).set_stride(1);
-        blur_y.dim(0).set_stride(4 - 2);
+        blur_y.dim(0).set_stride(img_width - BLUR_BOUNDARY);
         blur_y.dim(1).set_stride(1);
     }
 };
