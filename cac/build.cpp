@@ -17,13 +17,14 @@
 using namespace mlir;
 
 // Traverse the task graph in depth-first order
-void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task)
+void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
+    bool printDat)
 {
   // Constant dat; TODO: support non-constant buffer
 
   for (cac::Task *dep : task.deps) {
     if (!dep->visited)
-      invokeKernels(builder, context, *dep);
+      invokeKernels(builder, context, *dep, printDat);
   }
 
   if (task.args.size() > 0) { // TODO: invoke even if there is no dat attached
@@ -56,11 +57,13 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task)
       assert("unsupported task type");
     }
 
-    for (cac::Value *val : task.args) {
-      auto valImpl = val->getImpl();
-      if (valImpl->type == cac::ValueImpl::Dat)
-	builder.create<toy::PrintOp>(builder.getUnknownLoc(), valImpl->ref);
-      // TODO: print for scalars
+    if (printDat) {
+      for (cac::Value *val : task.args) {
+	auto valImpl = val->getImpl();
+	if (valImpl->type == cac::ValueImpl::Dat)
+	  builder.create<toy::PrintOp>(builder.getUnknownLoc(), valImpl->ref);
+	// TODO: print for scalars
+      }
     }
   } else {
   }
@@ -188,7 +191,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
   //  std::unique_ptr<Task>& root = *rooti;
   for (std::unique_ptr<cac::Task>& root : tg.tasks) {
     if (!root->visited)
-      invokeKernels(builder, context, *root);
+      invokeKernels(builder, context, *root, tg.datPrintEnabled);
   }
 
   // Return from main

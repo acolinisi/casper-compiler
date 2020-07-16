@@ -94,6 +94,7 @@ namespace cac {
 
 	class TaskGraph {
 	public:
+		TaskGraph();
 		Dat& createDat(int n, int m);
 		Dat& createDat(int n, int m, const std::vector<double> &vals);
 		IntScalar& createIntScalar(uint8_t width);
@@ -104,6 +105,8 @@ namespace cac {
 		Task& createTask(CKernel kern, std::vector<Value *> args,
 				std::vector<Task *> deps = {});
 
+		void setDatPrint(bool enable);
+
 	protected:
 		Task& createTask(std::unique_ptr<Task> task, std::vector<Task *> deps);
 		IntScalar& createIntScalar(std::unique_ptr<IntScalar> scalar);
@@ -111,6 +114,7 @@ namespace cac {
 	public:
 		std::vector<std::unique_ptr<Value>> values;
 		std::vector<std::unique_ptr<Task>> tasks;
+		bool datPrintEnabled;
 	};
 
 } // namespace cac

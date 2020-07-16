@@ -6,6 +6,7 @@ using namespace cac;
 
 int main(int argc, char **argv) {
 	TaskGraph tg;
+	tg.setDatPrint(true);
 
 	std::vector<double> matValsA {
 		1.000000e+00, -2.000000e+00,

@@ -29,6 +29,8 @@ DatImpl *Dat::getImpl() {
 	return static_cast<DatImpl *>(impl);
 }
 
+TaskGraph::TaskGraph() : datPrintEnabled(false) { }
+
 Dat& TaskGraph::createDat(int n, int m) {
 	return createDat(n, m, {});
 }
@@ -73,6 +75,10 @@ Task& TaskGraph::createTask(std::unique_ptr<Task> task, std::vector<Task*> deps)
 	}
 	tasks.push_back(std::move(task));
 	return *tasks.back();
+}
+
+void TaskGraph::setDatPrint(bool enable) {
+	datPrintEnabled = enable;
 }
 
 } /* namespace cac */
