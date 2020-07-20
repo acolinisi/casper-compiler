@@ -44,7 +44,7 @@ if LAYERS == 1:
     L = tf.layers.dense(x, 15, tf.nn.relu)
 elif LAYERS == 2:
     L1 = tf.layers.dense(x, 5, tf.nn.relu)
-    L2 = tf.layers.dense(x, 5, tf.nn.relu)
+    L2 = tf.layers.dense(L1, 5, tf.nn.relu)
     L = L2
 else:
     print(f"ERROR: unsupported number of layers: {LAYERS}",
