@@ -1,23 +1,37 @@
 set(CASPER_COMPILER_LIB cac)
 
 # Create a Casper executable (application)
-# Arguments: app_target source_file...
+# Arguments: app_target SOURCES source_file... HALIDE_GENERATORS gen1 ...
 function(casper_add_exec target meta_prog)
-	#cmake_parse_arguments(FARG
-	#	""
-	#	""
-	#	SOURCES ${ARGN})
+	cmake_parse_arguments(FARG
+		""
+		""
+		"SOURCES;HALIDE_GENERATORS" ${ARGN})
+
+	find_package(Threads)
 
 	# TODO: FindCasper.cmake (figure out if functions go into Find*.cmake),
 	# then move these out of the function
 	find_program(LLC llc REQUIRED DOC "LLVM IR compiler")
 	include_directories(${CAC_INCLUDE_DIRS})
 
-	add_executable(${meta_prog} ${ARGN})
+	add_executable(${meta_prog} ${FARG_SOURCES})
 	target_link_libraries(${meta_prog} LINK_PUBLIC ${CASPER_COMPILER_LIB})
 
+	foreach(gen ${FARG_HALIDE_GENERATORS})
+		set(halide_lib lib${gen}.a)
+		list(APPEND halide_libs ${halide_lib})
+	endforeach()
+
+	list(APPEND halide_libs libhalide_runtime.a)
+
+	foreach(halide_lib ${halide_libs})
+		list(APPEND halide_libs_paths
+			${CMAKE_CURRENT_BINARY_DIR}/${halide_lib})
+	endforeach()
+
 	# Run the meta-program
-	add_custom_command(OUTPUT ${target}.ll
+	add_custom_command(OUTPUT ${target}.ll ${halide_libs}
 	  COMMAND ${meta_prog} 2> ${target}.ll
 	  DEPENDS ${meta_prog})
 
@@ -27,6 +41,8 @@ function(casper_add_exec target meta_prog)
 	  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${target}.ll)
 
 	add_executable(${target} ${CMAKE_CURRENT_BINARY_DIR}/${target}.o)
+	target_link_libraries(${target} ${halide_libs_paths}
+		Threads::Threads ${CMAKE_DL_LIBS})
 	set_target_properties(${target} PROPERTIES LINKER_LANGUAGE CXX)
 endfunction()
 
@@ -36,33 +52,4 @@ function(casper_add_c_kern app)
 	set(lib ${app}_kern_c)
 	add_library(${lib} ${ARGN})
 	target_link_libraries(${app} ${lib})
-endfunction()
-
-# Add to app kernels written as Halide pipelines
-# Arguments: app_target GENERATORS gen... SOURCES source_file... PARAMS p,...
-function(casper_add_halide_meta app)
-	cmake_parse_arguments(FARG
-		""
-		""
-		"GENERATORS;SOURCES;PARAMS" ${ARGN})
-
-	find_program(LLC llc REQUIRED DOC "LLVM IR compiler")
-
-	# TODO: in FindCasper.cmake, take option HALIDE
-	find_package(Halide REQUIRED)
-	find_package(OpenMP)
-
-	# Target to build the generator
-	add_executable(${app}.halide_meta ${FARG_SOURCES})
-	target_link_libraries(${app}.halide_meta PRIVATE Halide::Generator)
-
-	# Target to run the generator
-	foreach(gen ${FARG_GENERATORS})
-		# TODO: name library ${app}_kern_halide_X
-		add_halide_library(${gen} FROM ${app}.halide_meta
-						   STMT ${gen}_STMT
-						   LLVM_ASSEMBLY ${gen}_LLVM_ASSEMBLY
-						   PARAMS ${FARG_PARAMS})
-		target_link_libraries(${app} ${gen})
-	endforeach()
 endfunction()

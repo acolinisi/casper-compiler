@@ -1,5 +1,10 @@
 add_subdirectory(include)
 
+# TODO: make Halide optional (some apps may not have any Halide kernels)
+# Note: assuming Halide's private headres are in usr/include/Halide
+# Halide's private headers needed to invoke generators from Casper.
+find_package(Halide REQUIRED)
+
 set(LLVM_LINK_COMPONENTS
   Support
   )
@@ -16,6 +21,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/)
 
 add_llvm_library(cac
   build.cpp
+  halide.cpp
   Executable.cpp
   TaskGraph.cpp
   TaskGraphImpl.cpp
@@ -54,6 +60,9 @@ target_link_libraries(cac
   MLIRSupport
   MLIRTargetLLVMIR
   MLIRTransforms
+
+  PUBLIC
+  Halide::Halide
   )
 
 mlir_check_link_libraries(cac)

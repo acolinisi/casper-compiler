@@ -73,6 +73,18 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
 int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
     OwningModuleRef &module)
 {
+  std::vector<std::string> generators;
+  for (auto &task : tg.tasks) {
+    if (task->type == cac::Task::Halide)
+      generators.push_back(task->func);
+  }
+
+  for (auto& generator : generators) {
+    std::map<std::string, std::string> params; // TODO: from KnowledgeBase
+    compileHalideKernel(generator, params);
+  }
+  compileHalideRuntime();
+
   module = OwningModuleRef(ModuleOp::create(
         UnknownLoc::get(&context)));
 
