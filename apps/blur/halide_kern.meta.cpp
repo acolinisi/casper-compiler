@@ -10,10 +10,24 @@ public:
     GeneratorParam<int> tile_y{"tile_y", /* 8 */ 1};   // Y tile.
 
     // TODO: name descriptively
+#if 1 // big: 120 s , small: 2.6s
     GeneratorParam<int> p1{"p1", 1};
     GeneratorParam<int> p2{"p2", 1};
     GeneratorParam<int> p3{"p3", 1};
     GeneratorParam<int> p4{"p4", 1};
+#else
+#if 1 // big: 10.8 s, small: 1.6 s
+    GeneratorParam<int> p1{"p1", 6};
+    GeneratorParam<int> p2{"p2", 6};
+    GeneratorParam<int> p3{"p3", 2};
+    GeneratorParam<int> p4{"p4", 2};
+#else // big: 9.5s, small: 1.5s
+    GeneratorParam<int> p1{"p1", 6};
+    GeneratorParam<int> p2{"p2", 10};
+    GeneratorParam<int> p3{"p3", 6};
+    GeneratorParam<int> p4{"p4", 4};
+#endif
+#endif
 
     Input<Buffer<double>> input{"input", 2};
     Output<Buffer<double>> blur_y{"blur_y", 2};
