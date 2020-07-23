@@ -7,7 +7,12 @@ using namespace cac;
 int main(int argc, char **argv) {
 	TaskGraph tg;
 
+#if 1
 	int img_width = 1695, img_height = 1356; // casper.bmp
+#else
+	int img_width = 16950, img_height = 13560; // casper-tiled10.bmp
+#endif
+
 	Dat *img = &tg.createDat(img_height, img_width);
 
 	Task& task_load = tg.createTask(CKernel("bmp_load"), {img});
