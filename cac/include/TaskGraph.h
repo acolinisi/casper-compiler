@@ -100,9 +100,10 @@ namespace cac {
 		IntScalar& createIntScalar(uint8_t width);
 		IntScalar& createIntScalar(uint8_t width, uint64_t v);
 
-		Task& createTask(HalideKernel kern, std::vector<Value *> args,
+		Task& createTask(HalideKernel kern,
+				std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
-		Task& createTask(CKernel kern, std::vector<Value *> args,
+		Task& createTask(CKernel kern, std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
 
 		void setDatPrint(bool enable);
