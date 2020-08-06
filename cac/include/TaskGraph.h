@@ -49,7 +49,8 @@ namespace cac {
 	public:
 		enum TaskType {
 			Halide,
-			C
+			C,
+			Python,
 		};
 
 	public:
@@ -76,6 +77,11 @@ namespace cac {
 		CTask(const std::string &func, std::vector<Value *> args)
 			: Task(Task::C, func, args) {}
 	};
+	class PyTask : public Task {
+	public:
+		PyTask(const std::string &func, std::vector<Value *> args)
+			: Task(Task::Python, func, args) {}
+	};
 
 	class Kernel {
 	public:
@@ -91,6 +97,10 @@ namespace cac {
 	public:
 		CKernel(const std::string &func) : Kernel(func) { }
 	};
+	class PyKernel : public Kernel {
+	public:
+		PyKernel(const std::string &func) : Kernel(func) { }
+	};
 
 	class TaskGraph {
 	public:
@@ -104,6 +114,8 @@ namespace cac {
 				std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
 		Task& createTask(CKernel kern, std::vector<Value *> args = {},
+				std::vector<Task *> deps = {});
+		Task& createTask(PyKernel kern, std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
 
 		void setDatPrint(bool enable);

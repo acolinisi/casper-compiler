@@ -215,6 +215,23 @@ def KernelOp : Toy_Op<"kernel"> {
   let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
 }
 
+def PyKernelOp : Toy_Op<"py_kernel"> {
+  let summary = "invoke a Python function";
+  let description = [{
+    Invoke a kernel function defined in a Python source file.
+  }];
+
+  // We also allow a F64MemRef to enable interop during partial lowering.
+  // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
+  // TODO: filename + func name?
+  let arguments = (ins
+      Variadic<AnyTypeOf<[F64Tensor, F64MemRef]>>:$input,
+      StrAttr:$func
+  );
+
+  let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
+}
+
 def HalideKernelOp : Toy_Op<"halide_kernel"> {
   let summary = "invoke a Halide kernel function";
   let description = [{

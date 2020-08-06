@@ -293,6 +293,7 @@ void ToyToAffineLoweringPass::runOnFunction() {
   target.addIllegalDialect<toy::ToyDialect>();
   target.addLegalOp<toy::PrintOp>();
   target.addLegalOp<toy::KernelOp>();
+  target.addLegalOp<toy::PyKernelOp>();
   target.addLegalOp<toy::HalideKernelOp>();
 
   // Now that the conversion target has been defined, we just need to provide

@@ -66,3 +66,5 @@ target_link_libraries(cac
   )
 
 mlir_check_link_libraries(cac)
+
+add_subdirectory(runtime)

@@ -35,13 +35,15 @@ function(casper_add_exec target meta_prog)
 	  COMMAND ${meta_prog} 2> ${target}.ll
 	  DEPENDS ${meta_prog})
 
-	# Compile and link the target binary
+	# Compile the target harness
 	add_custom_command(OUTPUT ${target}.o
 	  COMMAND ${LLC} -filetype=obj -o ${target}.o ${target}.ll
 	  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${target}.ll)
 
+	# Link the binary
 	add_executable(${target} ${CMAKE_CURRENT_BINARY_DIR}/${target}.o)
 	target_link_libraries(${target} ${halide_libs_paths}
+		casper_runtime
 		Threads::Threads ${CMAKE_DL_LIBS})
 	set_target_properties(${target} PROPERTIES LINKER_LANGUAGE CXX)
 endfunction()

@@ -231,6 +231,85 @@ private:
   }
 };
 
+// Lowers a kernel invocation into a call to the kernel function
+class PyKernelOpLowering : public ConversionPattern {
+public:
+  explicit PyKernelOpLowering(TypeConverter &typeConverter,
+      MLIRContext *context)
+      : ConversionPattern(toy::PyKernelOp::getOperationName(), 1,
+          typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const override {
+#if 0
+    auto memRefType = (*op->operand_type_begin()).cast<MemRefType>();
+    auto memRefShape = memRefType.getShape();
+#endif
+    auto loc = op->getLoc();
+    auto *llvmDialect =
+        op->getContext()->getRegisteredDialect<LLVM::LLVMDialect>();
+    assert(llvmDialect && "expected llvm dialect to be registered");
+
+    ModuleOp module = op->getParentOfType<ModuleOp>();
+
+    // Get a symbol reference to the kernel function, inserting it if necessary.
+    StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
+    assert(funcAttr); // verified
+    StringRef func = funcAttr.getValue();
+
+    // Declare launcher function: func name is a contract with Casper runtime
+    std::string launchPyFunc{"launch_python"};
+    if (!module.lookupSymbol<LLVM::LLVMFuncOp>(launchPyFunc)) {
+      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+      auto llvmSTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
+      auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+          {llvmSTy}, /*isVarArg*/ false);
+
+      // Insert the function declaration into the body of the parent module.
+      PatternRewriter::InsertionGuard insertGuard(rewriter);
+      rewriter.setInsertionPointToStart(module.getBody());
+      rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), launchPyFunc, llvmFnType);
+    }
+    auto launchFuncRef = SymbolRefAttr::get(launchPyFunc, module.getContext());
+
+    // TODO: there has to be a better way to alloc and fill an array
+    // It needs to be alloced in .data, instead of on the stack.
+
+    // Allocate char[] array to hold python function name (filename, for now)
+    auto charTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
+    Value funcNameLen = rewriter.create<LLVM::ConstantOp>(loc,
+        typeConverter->convertType(rewriter.getIndexType()),
+        rewriter.getIntegerAttr(rewriter.getIndexType(), func.size() + 1));
+    Value funcNameArr = rewriter.create<LLVM::AllocaOp>(loc,
+        charTy.getPointerTo(), funcNameLen, /*alignment=*/0);
+
+    // Copy function name (filename) from attribute to the allocated array
+    for (int index = 0; index < func.size() + 1; ++index) {
+      auto indexVal = rewriter.create<LLVM::ConstantOp>(loc,
+          typeConverter->convertType(rewriter.getIndexType()),
+          rewriter.getIntegerAttr(rewriter.getIndexType(), index));
+
+      auto charAddr = rewriter.create<LLVM::GEPOp>(loc, charTy.getPointerTo(),
+          funcNameArr, ValueRange{indexVal});
+
+      auto charVal = rewriter.create<LLVM::ConstantOp>(loc,
+          typeConverter->convertType(rewriter.getIntegerType(8)),
+        rewriter.getI8IntegerAttr(index < func.size() ? func[index] : 0));
+
+      rewriter.create<LLVM::StoreOp>(loc, charVal, charAddr);
+    }
+
+    // TODO: turn into an invocation of a python function, and pass dats
+    rewriter.create<CallOp>(loc, launchFuncRef, ArrayRef<Type>(),
+        funcNameArr);
+
+    // Notify the rewriter that this operation has been removed.
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 class ToyLLVMTypeConverter : public LLVMTypeConverter {
 public:
   ToyLLVMTypeConverter(MLIRContext *ctx) : LLVMTypeConverter(ctx) {
@@ -604,6 +683,7 @@ void ToyToLLVMLoweringPass::runOnOperation() {
     target.addIllegalDialect<toy::ToyDialect>();
     target.addLegalOp<toy::PrintOp>();
     target.addLegalOp<toy::KernelOp>();
+    target.addLegalOp<toy::PyKernelOp>();
     target.addLegalOp<LLVM::DialectCastOp>();
 
     ToyLLVMTypeConverter typeConverter(&getContext());
@@ -645,6 +725,7 @@ void ToyToLLVMLoweringPass::runOnOperation() {
   // PrintOp.
   patterns.insert<PrintOpLowering>(&getContext());
   patterns.insert<KernelOpLowering>(&getContext());
+  patterns.insert<PyKernelOpLowering>(typeConverter, &getContext());
 
   // We want to completely lower to LLVM, so we use a `FullConversion`. This
   // ensures that only legal operations will remain after the conversion.

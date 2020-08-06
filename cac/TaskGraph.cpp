@@ -61,6 +61,12 @@ Task& TaskGraph::createTask(CKernel kern, std::vector<Value *> args,
 	std::unique_ptr<Task> task(new CTask(kern.func, args));
 	return createTask(std::move(task), deps);
 }
+Task& TaskGraph::createTask(PyKernel kern, std::vector<Value *> args,
+				std::vector<Task*> deps)
+{
+	std::unique_ptr<Task> task(new PyTask(kern.func, args));
+	return createTask(std::move(task), deps);
+}
 Task& TaskGraph::createTask(HalideKernel kern, std::vector<Value *> args,
 				std::vector<Task*> deps)
 {
