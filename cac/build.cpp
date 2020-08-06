@@ -27,45 +27,42 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
       invokeKernels(builder, context, *dep, printDat);
   }
 
-  if (task.args.size() > 0) { // TODO: invoke even if there is no dat attached
-    // Invoke the kernel
-    auto funcAttr = StringAttr::get(StringRef(task.func), &context);
-    NamedAttribute funcNAttr(Identifier::get(StringRef("func"), &context),
-	funcAttr);
+  // Invoke the kernel
+  auto funcAttr = StringAttr::get(StringRef(task.func), &context);
+  NamedAttribute funcNAttr(Identifier::get(StringRef("func"), &context),
+      funcAttr);
 
-    std::vector<Value> args;
+  std::vector<Value> args;
+  for (cac::Value *val : task.args) {
+    args.push_back(val->getImpl()->ref);
+  }
+
+  // We want TaskGraph to be decoupled from compilation implementation, so
+  // we can't put these actions into a virtual method on the task objects.
+  // TODO: switch to polymorphism, while still decoupling using impl ptr?
+  switch (task.type) {
+  case cac::Task::Halide:
+      builder.create<toy::HalideKernelOp>(builder.getUnknownLoc(),
+	ArrayRef<Type>{}, ValueRange(args),
+	ArrayRef<NamedAttribute>{funcNAttr});
+      break;
+  case cac::Task::C:
+      builder.create<toy::KernelOp>(builder.getUnknownLoc(),
+	ArrayRef<Type>{}, ValueRange(args),
+	ArrayRef<NamedAttribute>{funcNAttr});
+      break;
+  default:
+    // TODO: figure out failure propagation
+    assert("unsupported task type");
+  }
+
+  if (printDat) {
     for (cac::Value *val : task.args) {
-      args.push_back(val->getImpl()->ref);
+      auto valImpl = val->getImpl();
+      if (valImpl->type == cac::ValueImpl::Dat)
+	builder.create<toy::PrintOp>(builder.getUnknownLoc(), valImpl->ref);
+      // TODO: print for scalars
     }
-
-    // We want TaskGraph to be decoupled from compilation implementation, so
-    // we can't put these actions into a virtual method on the task objects.
-    // TODO: switch to polymorphism, while still decoupling using impl ptr?
-    switch (task.type) {
-    case cac::Task::Halide:
-	builder.create<toy::HalideKernelOp>(builder.getUnknownLoc(),
-	  ArrayRef<Type>{}, ValueRange(args),
-	  ArrayRef<NamedAttribute>{funcNAttr});
-	break;
-    case cac::Task::C:
-	builder.create<toy::KernelOp>(builder.getUnknownLoc(),
-	  ArrayRef<Type>{}, ValueRange(args),
-	  ArrayRef<NamedAttribute>{funcNAttr});
-	break;
-    default:
-      // TODO: figure out failure propagation
-      assert("unsupported task type");
-    }
-
-    if (printDat) {
-      for (cac::Value *val : task.args) {
-	auto valImpl = val->getImpl();
-	if (valImpl->type == cac::ValueImpl::Dat)
-	  builder.create<toy::PrintOp>(builder.getUnknownLoc(), valImpl->ref);
-	// TODO: print for scalars
-      }
-    }
-  } else {
   }
   task.visited = true;
 }
