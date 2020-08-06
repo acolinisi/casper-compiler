@@ -222,7 +222,7 @@ private:
       auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
         opers, /*isVarArg*/ false);
 
-      // Insert the printf function into the body of the parent module.
+      // Insert the function declaration into the body of the parent module.
       PatternRewriter::InsertionGuard insertGuard(rewriter);
       rewriter.setInsertionPointToStart(module.getBody());
       rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), name, llvmFnType);
