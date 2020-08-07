@@ -42,20 +42,62 @@ void set_extra_python_path() {
 
 extern "C" {
 
-// TODO: let py_func be optional
-int launch_python(const char *py_module, const char *py_func)
-{
-	printf("py_module: %s py_func: %s\n", py_module, py_func);
+static wchar_t *program;
 
+void init_python()
+{
 	// TODO: look into what the constructed path is
 	// TODO: doesn't seem to make any difference, investigate
-	wchar_t *program = Py_DecodeLocale("app", NULL);
+	program = Py_DecodeLocale("app", NULL);
 	assert(program);
 	Py_SetProgramName(program);
 
 	set_extra_python_path();
 
 	Py_Initialize();
+
+#if 0 // attempt to append site-packages subdir to module path (no worky)
+	{
+		PyObject *pName, *pModule, *pValue;
+
+		pName = PyUnicode_DecodeFSDefault("site");
+		assert(pName);
+		pModule = PyImport_Import(pName);
+		assert(pModule);
+		Py_DECREF(pName);
+
+		pFunc = PyObject_GetAttrString(pModule, "main");
+		assert(pFunc && PyCallable_Check(pFunc));
+		pValue = PyObject_CallObject(pFunc, NULL);
+		assert(pValue);
+
+		Py_DECREF(pValue);
+		Py_DECREF(pFunc);
+		Py_DECREF(pModule);
+
+		wchar_t *def_py_path_w = Py_GetPath();
+		char *def_py_path = Py_EncodeLocale(def_py_path_w, NULL);
+		assert(def_py_path);
+		printf("def_py_path-site: %s\n", def_py_path);
+	}
+#endif
+}
+
+void finalize_python()
+{
+	int rc = Py_FinalizeEx();
+	if (rc < 0) {
+		fprintf(stderr,
+			"error: failed to finalize Python interpreter: %d\n", rc);
+		exit(1);
+	}
+	PyMem_RawFree(program);
+}
+
+// TODO: let py_func be optional
+int launch_python(const char *py_module, const char *py_func)
+{
+	printf("py_module: %s py_func: %s\n", py_module, py_func);
 
 	int rc;
 
@@ -83,32 +125,6 @@ int launch_python(const char *py_module, const char *py_func)
 		exit(1);
 	}
 	fclose(fkern);
-#endif
-
-#if 0 // attempt to append site-packages subdir to module path (no worky)
-	{
-		PyObject *pName, *pModule, *pValue;
-
-		pName = PyUnicode_DecodeFSDefault("site");
-		assert(pName);
-		pModule = PyImport_Import(pName);
-		assert(pModule);
-		Py_DECREF(pName);
-
-		pFunc = PyObject_GetAttrString(pModule, "main");
-		assert(pFunc && PyCallable_Check(pFunc));
-		pValue = PyObject_CallObject(pFunc, NULL);
-		assert(pValue);
-
-		Py_DECREF(pValue);
-		Py_DECREF(pFunc);
-		Py_DECREF(pModule);
-
-		wchar_t *def_py_path_w = Py_GetPath();
-		char *def_py_path = Py_EncodeLocale(def_py_path_w, NULL);
-		assert(def_py_path);
-		printf("def_py_path-site: %s\n", def_py_path);
-	}
 #endif
 
 	PyObject *pName, *pModule, *pFunc, *pArgs, *pValue;
@@ -141,14 +157,6 @@ int launch_python(const char *py_module, const char *py_func)
 		fprintf(stderr, "error: failed to load module '%s'\n", py_module);
 	}
 
-	rc = Py_FinalizeEx();
-	if (rc < 0) {
-		fprintf(stderr,
-			"error: failed to finalize Python interpreter: %d\n", rc);
-		exit(1);
-	}
-
-	PyMem_RawFree(program);
 	return 0;
 }
 

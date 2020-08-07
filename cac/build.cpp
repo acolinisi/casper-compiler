@@ -16,6 +16,8 @@
 
 using namespace mlir;
 
+namespace {
+
 // Traverse the task graph in depth-first order
 void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
     bool printDat)
@@ -77,6 +79,23 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
   task.visited = true;
 }
 
+mlir::LLVM::LLVMFuncOp declare_void_func(mlir::LLVM::LLVMDialect *llvmDialect,
+    OpBuilder &builder, OwningModuleRef &module, StringRef func)
+{
+  auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+  auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy, {},
+      /*isVarArg*/ false);
+  return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
+      llvmFnType);
+}
+void call_void_func(OpBuilder &builder, OwningModuleRef &module,
+    Location loc, mlir::LLVM::LLVMFuncOp &func)
+{
+  builder.create<LLVM::CallOp>(loc, func, ValueRange{});
+}
+
+} // anon namespace
+
 int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
     OwningModuleRef &module)
 {
@@ -99,6 +118,15 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
   auto loc = builder.getUnknownLoc();
   auto llvmDialect = context.getRegisteredDialect<LLVM::LLVMDialect>();
 
+  // Names are contract with Casper runtime
+  const char *INIT_PY_FUNC = "init_python";
+  const char *FIN_PY_FUNC = "finalize_python";
+
+  auto initPyFunc = declare_void_func(llvmDialect, builder, module,
+      INIT_PY_FUNC);
+  auto finPyFunc = declare_void_func(llvmDialect, builder, module,
+      FIN_PY_FUNC);
+
   // create main() function
   auto mainTy = FunctionType::get({}, {builder.getI32Type()}, &context);
   FuncOp main = builder.create<FuncOp>(loc,
@@ -106,6 +134,8 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
       ArrayRef<NamedAttribute>{});
   auto &entryBlock = *main.addEntryBlock();
   builder.setInsertionPointToStart(&entryBlock);
+
+  call_void_func(builder, module, loc, initPyFunc);
 
   // For now, we pre-allocate all data buffers, at the beginning of main()
   // and deallocate them at the end (we don't track lifetime of buffers).
@@ -212,6 +242,8 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
     if (!root->visited)
       invokeKernels(builder, context, *root, tg.datPrintEnabled);
   }
+
+  call_void_func(builder, module, loc, finPyFunc);
 
   // Return from main
   auto zeroVal = builder.create<mlir::ConstantOp>(loc,
