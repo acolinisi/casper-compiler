@@ -233,6 +233,10 @@ private:
 
 // Lowers a kernel invocation into a call to the kernel function
 class PyKernelOpLowering : public ConversionPattern {
+private:
+  // Launcher function name is a contract with Casper runtime
+  static constexpr char* LAUNCH_PY_FUNC = "launch_python";
+
 public:
   explicit PyKernelOpLowering(TypeConverter &typeConverter,
       MLIRContext *context)
@@ -254,17 +258,13 @@ public:
     ModuleOp module = op->getParentOfType<ModuleOp>();
 
     // Get a symbol reference to the kernel function, inserting it if necessary.
-    StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
-    assert(funcAttr); // verified
-    StringRef func = funcAttr.getValue();
-
     // Declare launcher function: func name is a contract with Casper runtime
-    std::string launchPyFunc{"launch_python"};
+    std::string launchPyFunc{LAUNCH_PY_FUNC};
     if (!module.lookupSymbol<LLVM::LLVMFuncOp>(launchPyFunc)) {
       auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
       auto llvmSTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
       auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
-          {llvmSTy}, /*isVarArg*/ false);
+          {/* module */ llvmSTy, /* func */ llvmSTy}, /*isVarArg*/ false);
 
       // Insert the function declaration into the body of the parent module.
       PatternRewriter::InsertionGuard insertGuard(rewriter);
@@ -273,40 +273,57 @@ public:
     }
     auto launchFuncRef = SymbolRefAttr::get(launchPyFunc, module.getContext());
 
-    // TODO: there has to be a better way to alloc and fill an array
-    // It needs to be alloced in .data, instead of on the stack.
+    // Allocate char[] array and fill with value of attribute
+    Value pyModNameArr = allocString(llvmDialect, rewriter, loc, op, "module");
+    Value pyFuncNameArr = allocString(llvmDialect, rewriter, loc, op, "func");
 
-    // Allocate char[] array to hold python function name (filename, for now)
+    // TODO: pass and receive dats
+    rewriter.create<CallOp>(loc, launchFuncRef, ArrayRef<Type>(),
+        ValueRange{pyModNameArr, pyFuncNameArr});
+
+    // Notify the rewriter that this operation has been removed.
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+private:
+  // Allocate and fill a char[] array
+  // TODO: there has to be a better way to alloc and fill an array
+  // It needs to be alloced in .data, instead of on the stack.
+  Value allocString(LLVM::LLVMDialect *llvmDialect,
+      ConversionPatternRewriter &rewriter, Location loc,
+      StringRef value) const {
     auto charTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
-    Value funcNameLen = rewriter.create<LLVM::ConstantOp>(loc,
+    Value strLen = rewriter.create<LLVM::ConstantOp>(loc,
         typeConverter->convertType(rewriter.getIndexType()),
-        rewriter.getIntegerAttr(rewriter.getIndexType(), func.size() + 1));
-    Value funcNameArr = rewriter.create<LLVM::AllocaOp>(loc,
-        charTy.getPointerTo(), funcNameLen, /*alignment=*/0);
+        rewriter.getIntegerAttr(rewriter.getIndexType(), value.size() + 1));
+    Value charArr = rewriter.create<LLVM::AllocaOp>(loc,
+        charTy.getPointerTo(), strLen, /*alignment=*/0);
 
-    // Copy function name (filename) from attribute to the allocated array
-    for (int index = 0; index < func.size() + 1; ++index) {
+    // Fill allocated array with string passed in 'value'
+    for (int index = 0; index < value.size() + 1; ++index) {
       auto indexVal = rewriter.create<LLVM::ConstantOp>(loc,
           typeConverter->convertType(rewriter.getIndexType()),
           rewriter.getIntegerAttr(rewriter.getIndexType(), index));
 
       auto charAddr = rewriter.create<LLVM::GEPOp>(loc, charTy.getPointerTo(),
-          funcNameArr, ValueRange{indexVal});
+          charArr, ValueRange{indexVal});
 
       auto charVal = rewriter.create<LLVM::ConstantOp>(loc,
           typeConverter->convertType(rewriter.getIntegerType(8)),
-        rewriter.getI8IntegerAttr(index < func.size() ? func[index] : 0));
+        rewriter.getI8IntegerAttr(index < value.size() ? value[index] : 0));
 
       rewriter.create<LLVM::StoreOp>(loc, charVal, charAddr);
     }
+    return charArr;
+  }
 
-    // TODO: turn into an invocation of a python function, and pass dats
-    rewriter.create<CallOp>(loc, launchFuncRef, ArrayRef<Type>(),
-        funcNameArr);
-
-    // Notify the rewriter that this operation has been removed.
-    rewriter.eraseOp(op);
-    return success();
+  Value allocString(LLVM::LLVMDialect *llvmDialect,
+      ConversionPatternRewriter &rewriter, Location loc,
+      Operation *op, StringRef attrName) const {
+    StringAttr attr = op->getAttrOfType<StringAttr>(attrName);
+    assert(attr); // verified by .td
+    return allocString(llvmDialect, rewriter, loc, attr.getValue());
   }
 };
 

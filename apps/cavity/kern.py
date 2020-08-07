@@ -17,104 +17,107 @@ SOLVER = "superlu_dist"
 GPU = 0
 THREADS = 1
 
-
 # Must be before importing firedrake!
 os.environ["OMP_NUM_THREADS"] = str(THREADS)
 
 from firedrake import *
 
-print("START: mesh", N, "solver", SOLVER, "threads", THREADS, "gpu", GPU, "...")
-start_time = time.time()
+def solve_cavity():
 
-M = UnitSquareMesh(N, N)
-#M = DeciSquareMesh(N, N)
+    print("START: mesh", N, "solver", SOLVER, "threads", THREADS, "gpu", GPU, "...")
+    start_time = time.time()
 
-V = VectorFunctionSpace(M, "CG", 2)
-W = FunctionSpace(M, "CG", 1)
-Z = V * W
+    M = UnitSquareMesh(N, N)
+    #M = DeciSquareMesh(N, N)
 
-u, p = TrialFunctions(Z)
-v, q = TestFunctions(Z)
+    V = VectorFunctionSpace(M, "CG", 2)
+    W = FunctionSpace(M, "CG", 1)
+    Z = V * W
 
-a = (inner(grad(u), grad(v)) - p * div(v) + div(u) * q)*dx
+    u, p = TrialFunctions(Z)
+    v, q = TestFunctions(Z)
 
-L = inner(Constant((0, 0)), v) * dx
+    a = (inner(grad(u), grad(v)) - p * div(v) + div(u) * q)*dx
 
-# The boundary conditions are defined on the velocity space.  Zero
-# Dirichlet conditions on the bottom and side walls, a constant :math:`u
-# = (1, 0)` condition on the lid.::
+    L = inner(Constant((0, 0)), v) * dx
 
-bcs = [DirichletBC(Z.sub(0), Constant((1, 0)), (4,)),
-       DirichletBC(Z.sub(0), Constant((0, 0)), (1, 2, 3))]
+    # The boundary conditions are defined on the velocity space.  Zero
+    # Dirichlet conditions on the bottom and side walls, a constant :math:`u
+    # = (1, 0)` condition on the lid.::
 
-up = Function(Z)
+    bcs = [DirichletBC(Z.sub(0), Constant((1, 0)), (4,)),
+           DirichletBC(Z.sub(0), Constant((0, 0)), (1, 2, 3))]
 
-# Since we do not specify boundary conditions on the pressure space, it
-# is only defined up to a constant.  We will remove this component of
-# the solution in the solver by providing the appropriate nullspace.::
+    up = Function(Z)
 
-nullspace = MixedVectorSpaceBasis(
-    Z, [Z.sub(0), VectorSpaceBasis(constant=True)])
+    # Since we do not specify boundary conditions on the pressure space, it
+    # is only defined up to a constant.  We will remove this component of
+    # the solution in the solver by providing the appropriate nullspace.::
 
-# First up, we will solve the problem directly.  For this to work, the
-# sparse direct solver MUMPS must be installed.  Hence this solve is
-# wrapped in a ``try/except`` block so that an error is not raised in
-# the case that it is not, to do this we must import ``PETSc``::
+    nullspace = MixedVectorSpaceBasis(
+        Z, [Z.sub(0), VectorSpaceBasis(constant=True)])
 
-from firedrake.petsc import PETSc
+    # First up, we will solve the problem directly.  For this to work, the
+    # sparse direct solver MUMPS must be installed.  Hence this solve is
+    # wrapped in a ``try/except`` block so that an error is not raised in
+    # the case that it is not, to do this we must import ``PETSc``::
 
-# To factor the matrix from this mixed system, we must specify
-# a ``mat_type`` of ``aij`` to the solve call.::
+    from firedrake.petsc import PETSc
 
-#try:
-#typedef enum pastix_scheduler_e {
-#            PastixSchedSequential = 0, /**< Sequential                           */
-#            PastixSchedStatic     = 1, /**< Shared memory with static scheduler  */
-#            PastixSchedParsec     = 2, /**< PaRSEC scheduler                     */
-#            PastixSchedStarPU     = 3, /**< StarPU scheduler                     */
-#            PastixSchedDynamic    = 4, /**< Shared memory with dynamic scheduler */
-#            } pastix_scheduler_t;
+    # To factor the matrix from this mixed system, we must specify
+    # a ``mat_type`` of ``aij`` to the solve call.::
 
-solve(a == L, up, bcs=bcs, nullspace=nullspace,
-      solver_parameters={
-                        #"ksp_type": "gmres",
-                        "ksp_type": "preonly",
-                        #"ksp_gmres_haptol": 1e-2,
-                        #"ksp_type": "cg",
-                         #"ksp_atol": 1e-2,
-                         #"ksp_rtol": 1e-1,
+    #try:
+    #typedef enum pastix_scheduler_e {
+    #            PastixSchedSequential = 0, /**< Sequential                           */
+    #            PastixSchedStatic     = 1, /**< Shared memory with static scheduler  */
+    #            PastixSchedParsec     = 2, /**< PaRSEC scheduler                     */
+    #            PastixSchedStarPU     = 3, /**< StarPU scheduler                     */
+    #            PastixSchedDynamic    = 4, /**< Shared memory with dynamic scheduler */
+    #            } pastix_scheduler_t;
 
-                         #"ksp_atol": 1e-4,
-                         #"ksp_rtol": 1e-3,
+    solve(a == L, up, bcs=bcs, nullspace=nullspace,
+          solver_parameters={
+                            #"ksp_type": "gmres",
+                            "ksp_type": "preonly",
+                            #"ksp_gmres_haptol": 1e-2,
+                            #"ksp_type": "cg",
+                             #"ksp_atol": 1e-2,
+                             #"ksp_rtol": 1e-1,
 
-                         "mat_type": "aij",
-                         "pc_type": "lu",
+                             #"ksp_atol": 1e-4,
+                             #"ksp_rtol": 1e-3,
 
-                         #"pc_factor_mat_solver_type": "mumps",
+                             "mat_type": "aij",
+                             "pc_type": "lu",
 
-                         #"pc_factor_mat_solver_type": "superlu_dist",
+                             #"pc_factor_mat_solver_type": "mumps",
 
-                         #"pc_factor_mat_solver_type": "pastix",
+                             #"pc_factor_mat_solver_type": "superlu_dist",
 
-                         "pc_factor_mat_solver_type": SOLVER,
+                             #"pc_factor_mat_solver_type": "pastix",
 
-                         "mat_pastix_verbose": 2,
-                         "mat_pastix_scheduler": 3,
-                         #"mat_pastix_itermax": 1,
-                         #"mat_pastix_gmresim": 50,
-                         "mat_pastix_refinement": -1,
-                         #"mat_pastix_epsilonrefinement": 1e-6,
-                         #"mat_pastix_threadnbr": ((GPU + 1) % 2),
-                         "mat_pastix_threadnbr": THREADS,
-                         "mat_pastix_gpunbr": GPU,
-                         })
-end_time = time.time()
-print("EXEC TIME (sec): mesh", N, "solver", SOLVER, "threads", THREADS, "gpu", GPU, ":", end_time - start_time)
-#except PETSc.Error as e:
-#    if e.ierr == 92:
-#        warning("MUMPS not installed, skipping direct solve")
-#    else:
-#        raise e
+                             "pc_factor_mat_solver_type": SOLVER,
+
+                             "mat_pastix_verbose": 2,
+                             "mat_pastix_scheduler": 3,
+                             #"mat_pastix_itermax": 1,
+                             #"mat_pastix_gmresim": 50,
+                             "mat_pastix_refinement": -1,
+                             #"mat_pastix_epsilonrefinement": 1e-6,
+                             #"mat_pastix_threadnbr": ((GPU + 1) % 2),
+                             "mat_pastix_threadnbr": THREADS,
+                             "mat_pastix_gpunbr": GPU,
+                             })
+    end_time = time.time()
+    print("EXEC TIME (sec): mesh", N, "solver", SOLVER, "threads", THREADS, "gpu", GPU, ":", end_time - start_time)
+    #except PETSc.Error as e:
+    #    if e.ierr == 92:
+    #        warning("MUMPS not installed, skipping direct solve")
+    #    else:
+    #        raise e
+
+    # TODO: return up
 
 ## Now we'll use a Schur complement preconditioner using unassembled
 ## matrices.  We can do all of this purely by changing the solver
@@ -179,11 +182,11 @@ print("EXEC TIME (sec): mesh", N, "solver", SOLVER, "threads", THREADS, "gpu", G
 # parts and give them reasonable names, then write them to a paraview
 # file.::
 
-u, p = up.split()
-u.rename("Velocity")
-p.rename("Pressure")
-
-File("stokes.pvd").write(u, p)
+#u, p = up.split()
+#u.rename("Velocity")
+#p.rename("Pressure")
+#
+#File("stokes.pvd").write(u, p)
 
 ## By default, the mass matrix is assembled in the :class:`~.MassInvPC`
 ## preconditioner, however, this can be controlled using a ``mat_type``

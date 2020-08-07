@@ -51,11 +51,16 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
 	ArrayRef<Type>{}, ValueRange(args),
 	ArrayRef<NamedAttribute>{funcNAttr});
       break;
-  case cac::Task::Python:
+  case cac::Task::Python: {
+      cac::PyTask& pyTask = static_cast<cac::PyTask&>(task);
+      auto pyModAttr = StringAttr::get(StringRef(pyTask.module), &context);
+      NamedAttribute pyModNAttr(Identifier::get(StringRef("module"),
+	    &context), pyModAttr);
       builder.create<toy::PyKernelOp>(builder.getUnknownLoc(),
 	ArrayRef<Type>{}, ValueRange(args),
-	ArrayRef<NamedAttribute>{funcNAttr});
+	ArrayRef<NamedAttribute>{pyModNAttr, funcNAttr});
       break;
+  }
   default:
     // TODO: figure out failure propagation
     assert("unsupported task type");

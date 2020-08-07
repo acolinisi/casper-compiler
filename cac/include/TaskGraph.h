@@ -79,8 +79,11 @@ namespace cac {
 	};
 	class PyTask : public Task {
 	public:
-		PyTask(const std::string &func, std::vector<Value *> args)
-			: Task(Task::Python, func, args) {}
+		PyTask(const std::string &module, const std::string &func,
+			std::vector<Value *> args)
+			: Task(Task::Python, func, args), module(module) {}
+	public:
+		std::string module;
 	};
 
 	class Kernel {
@@ -99,7 +102,10 @@ namespace cac {
 	};
 	class PyKernel : public Kernel {
 	public:
-		PyKernel(const std::string &func) : Kernel(func) { }
+		PyKernel(const std::string &module, const std::string &func)
+			: Kernel(func), module(module) { }
+	public:
+		std::string module;
 	};
 
 	class TaskGraph {

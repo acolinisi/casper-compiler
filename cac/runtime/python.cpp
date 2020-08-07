@@ -4,11 +4,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#if 0
+
 /* caller must free() */
 char *concat_paths(const char *p1, const char *p2) {
 	int size = strlen(p1) + 1 + strlen(p2) + 1;
-	char *dest = malloc(size);
+	char *dest = (char *)malloc(size);
 	if (!dest)
 		return NULL;
 	dest[0] = '\0';
@@ -20,11 +20,12 @@ char *concat_paths(const char *p1, const char *p2) {
 }
 
 void set_extra_python_path() {
-	const char *extra_py_path = getenv("EXTRA_PYTHON_PATH");
+	const char *extra_py_path = getenv("PY_KERNEL_PATH");
 	if (extra_py_path) {
 		wchar_t *def_py_path_w = Py_GetPath();
 		char *def_py_path = Py_EncodeLocale(def_py_path_w, NULL);
 		assert(def_py_path);
+		printf("def_py_path: %s\n", def_py_path);
 
 		char *py_path = concat_paths(extra_py_path, def_py_path);
 		assert(py_path);
@@ -38,24 +39,27 @@ void set_extra_python_path() {
 		PyMem_Free(py_path_w);
 	}
 }
-#endif
 
 extern "C" {
 
-int launch_python(const char *py_file)
+// TODO: let py_func be optional
+int launch_python(const char *py_module, const char *py_func)
 {
-	printf("python\n");
+	printf("py_module: %s py_func: %s\n", py_module, py_func);
 
 	// TODO: look into what the constructed path is
-	wchar_t *program = Py_DecodeLocale("blur", NULL);
+	// TODO: doesn't seem to make any difference, investigate
+	wchar_t *program = Py_DecodeLocale("app", NULL);
 	assert(program);
 	Py_SetProgramName(program);
-	//set_extra_python_path();
+
+	set_extra_python_path();
 
 	Py_Initialize();
 
 	int rc;
 
+#if 0 // TODO: mode for file path without function
 	char kern_fname[1024];
 	const char *py_path = getenv("PY_KERNEL_PATH");
 	if (py_path) {
@@ -63,8 +67,10 @@ int launch_python(const char *py_file)
 		strcat(kern_fname, py_path);
 		strcat(kern_fname, "/");
 	}
-	strcat(kern_fname, py_file);
+	strcat(kern_fname, );
 	printf("kern_fname: %s\n", kern_fname);
+	assert(strlen() > 0);
+	assert(strlen(py_func) > 0);
 
 	FILE *fkern = fopen(kern_fname, "r");
 	if (!fkern) {
@@ -75,6 +81,64 @@ int launch_python(const char *py_file)
 	if (rc < 0) {
 		fprintf(stderr, "error: failed to run Python interpreter: %d\n", rc);
 		exit(1);
+	}
+	fclose(fkern);
+#endif
+
+#if 0 // attempt to append site-packages subdir to module path (no worky)
+	{
+		PyObject *pName, *pModule, *pValue;
+
+		pName = PyUnicode_DecodeFSDefault("site");
+		assert(pName);
+		pModule = PyImport_Import(pName);
+		assert(pModule);
+		Py_DECREF(pName);
+
+		pFunc = PyObject_GetAttrString(pModule, "main");
+		assert(pFunc && PyCallable_Check(pFunc));
+		pValue = PyObject_CallObject(pFunc, NULL);
+		assert(pValue);
+
+		Py_DECREF(pValue);
+		Py_DECREF(pFunc);
+		Py_DECREF(pModule);
+
+		wchar_t *def_py_path_w = Py_GetPath();
+		char *def_py_path = Py_EncodeLocale(def_py_path_w, NULL);
+		assert(def_py_path);
+		printf("def_py_path-site: %s\n", def_py_path);
+	}
+#endif
+
+	PyObject *pName, *pModule, *pFunc, *pArgs, *pValue;
+
+	pName = PyUnicode_DecodeFSDefault(py_module);
+	assert(pName);
+	pModule = PyImport_Import(pName);
+	Py_DECREF(pName);
+	if (pModule != NULL) {
+		pFunc = PyObject_GetAttrString(pModule, "solve_cavity");
+		if (pFunc && PyCallable_Check(pFunc)) {
+			printf("calling func\n");
+			pValue = PyObject_CallObject(pFunc, NULL);
+			if (pValue != NULL) {
+				printf("call succeeded\n");
+				Py_DECREF(pValue);
+			} else {
+				Py_DECREF(pFunc);
+				Py_DECREF(pModule);
+				PyErr_Print();
+				fprintf(stderr, "error: call failed\n");
+			}
+		} else {
+			if (PyErr_Occurred())
+				PyErr_Print();
+			fprintf(stderr, "error: function not found: %s\n", py_func);
+		}
+	} else {
+		PyErr_Print();
+		fprintf(stderr, "error: failed to load module '%s'\n", py_module);
 	}
 
 	rc = Py_FinalizeEx();

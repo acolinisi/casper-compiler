@@ -218,14 +218,14 @@ def KernelOp : Toy_Op<"kernel"> {
 def PyKernelOp : Toy_Op<"py_kernel"> {
   let summary = "invoke a Python function";
   let description = [{
-    Invoke a kernel function defined in a Python source file.
+    Invoke a kernel function defined in a Python module.
   }];
 
   // We also allow a F64MemRef to enable interop during partial lowering.
   // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
-  // TODO: filename + func name?
   let arguments = (ins
       Variadic<AnyTypeOf<[F64Tensor, F64MemRef]>>:$input,
+      StrAttr:$module,
       StrAttr:$func
   );
 
