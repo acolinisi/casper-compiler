@@ -37,4 +37,8 @@ DatImpl::DatImpl(int rows, int cols, const std::vector<double> &vals)
 	: ValueImpl(ValueImpl::Dat), rows(rows), cols(cols), vals(vals) {
 }
 
+PyObjImpl::PyObjImpl()
+	: ValueImpl(ValueImpl::PyObj) {
+}
+
 } // namespace cac

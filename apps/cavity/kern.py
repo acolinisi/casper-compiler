@@ -22,7 +22,7 @@ os.environ["OMP_NUM_THREADS"] = str(THREADS)
 
 from firedrake import *
 
-def solve_cavity():
+def solve_cavity(res):
 
     print("START: mesh", N, "solver", SOLVER, "threads", THREADS, "gpu", GPU, "...")
     start_time = time.time()
@@ -117,7 +117,16 @@ def solve_cavity():
     #    else:
     #        raise e
 
-    # TODO: return up
+    print(type(up))
+    u, p = up.split()
+    u.rename("Velocity")
+    p.rename("Pressure")
+    print(type(u))
+    print(type(u.vector()))
+    print(u.vector())
+    # Return results by adding them to the passed dict object
+    res["u"] = u
+    res["p"] = p
 
 ## Now we'll use a Schur complement preconditioner using unassembled
 ## matrices.  We can do all of this purely by changing the solver
@@ -208,3 +217,8 @@ def solve_cavity():
 #
 # A runnable python script implementing this demo file is available
 # `here <stokes.py>`__.
+
+def save_sol(sol):
+    print("velocity:", sol["u"])
+    print("pressure:", sol["p"])
+    #File("stokes.pvd").write(sol["u"], sol["p"])

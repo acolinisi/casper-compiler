@@ -221,10 +221,9 @@ def PyKernelOp : Toy_Op<"py_kernel"> {
     Invoke a kernel function defined in a Python module.
   }];
 
-  // We also allow a F64MemRef to enable interop during partial lowering.
-  // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
+  // TODO: define a PyObj type in our dialect? (can't use LLVM_Type either).
   let arguments = (ins
-      Variadic<AnyTypeOf<[F64Tensor, F64MemRef]>>:$input,
+      Variadic<AnyType>:$input,
       StrAttr:$module,
       StrAttr:$func
   );

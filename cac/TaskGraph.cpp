@@ -29,6 +29,11 @@ DatImpl *Dat::getImpl() {
 	return static_cast<DatImpl *>(impl);
 }
 
+PyObj::PyObj(PyObjImpl *impl) : Value(impl) { }
+PyObjImpl *PyObj::getImpl() {
+	return static_cast<PyObjImpl *>(impl);
+}
+
 TaskGraph::TaskGraph() : datPrintEnabled(false) { }
 
 Dat& TaskGraph::createDat(int n, int m) {
@@ -39,6 +44,13 @@ Dat& TaskGraph::createDat(int n, int m, const std::vector<double> &vals)
 	std::unique_ptr<Dat> dat(new Dat(new DatImpl(n, m, vals)));
 	Dat& ref = *dat;
 	values.push_back(std::move(dat));
+	return ref;
+}
+PyObj& TaskGraph::createPyObj()
+{
+	std::unique_ptr<PyObj> pyObj(new PyObj(new PyObjImpl()));
+	PyObj& ref = *pyObj;
+	values.push_back(std::move(pyObj));
 	return ref;
 }
 IntScalar& TaskGraph::createIntScalar(uint8_t width) {

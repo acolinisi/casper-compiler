@@ -16,6 +16,7 @@ namespace cac {
 	class ValueImpl;
 	class ScalarImpl;
 	class DatImpl;
+	class PyObjImpl;
 
 	class Value {
 	public:
@@ -42,6 +43,12 @@ namespace cac {
 	public:
 		IntScalar(uint8_t width);
 		IntScalar(uint8_t width, uint64_t v);
+	};
+
+	class PyObj : public Value {
+	public:
+		PyObj(PyObjImpl *impl);
+		PyObjImpl *getImpl();
 	};
 
 	// Could hide implementation in impl
@@ -113,6 +120,7 @@ namespace cac {
 		TaskGraph();
 		Dat& createDat(int n, int m);
 		Dat& createDat(int n, int m, const std::vector<double> &vals);
+		PyObj& createPyObj();
 		IntScalar& createIntScalar(uint8_t width);
 		IntScalar& createIntScalar(uint8_t width, uint64_t v);
 

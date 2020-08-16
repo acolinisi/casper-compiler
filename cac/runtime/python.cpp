@@ -94,8 +94,23 @@ void finalize_python()
 	PyMem_RawFree(program);
 }
 
+// TODO: can builder access PyObject* type somhow?
+void *py_alloc_obj()
+{
+	return Py_BuildValue("{}");
+}
+
+// TODO: can builder access PyObject* type somhow?
+void py_free_obj(void *obj)
+{
+	PyObject *pyObj = static_cast<PyObject *>(obj);
+	return Py_DECREF(pyObj);
+}
+
 // TODO: let py_func be optional
-int launch_python(const char *py_module, const char *py_func)
+// Borrows reference to each element of args[].
+int launch_python(const char *py_module, const char *py_func,
+		size_t num_args, void *args[num_args])
 {
 	printf("py_module: %s py_func: %s\n", py_module, py_func);
 
@@ -134,10 +149,17 @@ int launch_python(const char *py_module, const char *py_func)
 	pModule = PyImport_Import(pName);
 	Py_DECREF(pName);
 	if (pModule != NULL) {
-		pFunc = PyObject_GetAttrString(pModule, "solve_cavity");
+		pFunc = PyObject_GetAttrString(pModule, py_func);
 		if (pFunc && PyCallable_Check(pFunc)) {
 			printf("calling func\n");
-			pValue = PyObject_CallObject(pFunc, NULL);
+			PyObject *f_args = PyTuple_New(num_args);
+			for (size_t i = 0; i < num_args; ++i) {
+				PyObject *arg = (PyObject *)args[i];
+				Py_INCREF(arg); // don't let tuple steal the borrowed ref
+				PyTuple_SetItem(f_args, i, (PyObject *)args[i]);
+			}
+			pValue = PyObject_CallObject(pFunc, f_args);
+			Py_DECREF(f_args);
 			if (pValue != NULL) {
 				printf("call succeeded\n");
 				Py_DECREF(pValue);

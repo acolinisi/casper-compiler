@@ -259,12 +259,21 @@ public:
 
     // Get a symbol reference to the kernel function, inserting it if necessary.
     // Declare launcher function: func name is a contract with Casper runtime
+
+    auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+    // TODO: implicit assumption that rewriter.getIndexType() is 64-bit
+    auto llvmSizeTy = LLVM::LLVMType::getInt64Ty(llvmDialect);
+    auto llvmPtrTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
+    auto llvmPtrArrTy = LLVM::LLVMType::getArrayTy(llvmPtrTy,
+        operands.size());
+
     std::string launchPyFunc{LAUNCH_PY_FUNC};
     if (!module.lookupSymbol<LLVM::LLVMFuncOp>(launchPyFunc)) {
-      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
-      auto llvmSTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
       auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
-          {/* module */ llvmSTy, /* func */ llvmSTy}, /*isVarArg*/ false);
+          /* TODO: multiple PyObj args */
+          {/* module */ llvmPtrTy, /* func */ llvmPtrTy,
+          /* num_args */ llvmSizeTy, /* args */ llvmPtrArrTy.getPointerTo()},
+          /*isVarArg*/ false);
 
       // Insert the function declaration into the body of the parent module.
       PatternRewriter::InsertionGuard insertGuard(rewriter);
@@ -277,9 +286,40 @@ public:
     Value pyModNameArr = allocString(llvmDialect, rewriter, loc, op, "module");
     Value pyFuncNameArr = allocString(llvmDialect, rewriter, loc, op, "func");
 
-    // TODO: pass and receive dats
-    rewriter.create<CallOp>(loc, launchFuncRef, ArrayRef<Type>(),
-        ValueRange{pyModNameArr, pyFuncNameArr});
+    auto kernOp = cast<toy::PyKernelOp>(op);
+
+    // Allocate array of args to the kernel launcher function
+
+    Value zero = rewriter.create<LLVM::ConstantOp>(loc,
+        typeConverter->convertType(rewriter.getIndexType()),
+        rewriter.getIntegerAttr(rewriter.getIndexType(), 0));
+    Value one = rewriter.create<LLVM::ConstantOp>(loc,
+        typeConverter->convertType(rewriter.getIndexType()),
+        rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
+    Value argsArrPtr = rewriter.create<LLVM::AllocaOp>(loc,
+        llvmPtrArrTy.getPointerTo(), one, /*alignment=*/0);
+
+    for (int index = 0; index < kernOp.input().size(); ++index) {
+      auto indexVal = rewriter.create<LLVM::ConstantOp>(loc,
+          typeConverter->convertType(rewriter.getIndexType()),
+          rewriter.getIntegerAttr(rewriter.getIndexType(), index));
+
+      auto elemAddr = rewriter.create<LLVM::GEPOp>(loc,
+          llvmPtrTy.getPointerTo(),
+          argsArrPtr, ValueRange{zero, indexVal});
+
+      rewriter.create<LLVM::StoreOp>(loc, kernOp.input()[index], elemAddr);
+    }
+
+    Value argsLen = rewriter.create<LLVM::ConstantOp>(loc,
+        typeConverter->convertType(rewriter.getIndexType()),
+        rewriter.getIntegerAttr(rewriter.getIndexType(),
+          kernOp.input().size()));
+
+    SmallVector<Value, 8> args{pyModNameArr, pyFuncNameArr,
+                               argsLen, argsArrPtr};
+
+    rewriter.create<CallOp>(loc, launchFuncRef, ArrayRef<Type>(), args);
 
     // Notify the rewriter that this operation has been removed.
     rewriter.eraseOp(op);
@@ -297,6 +337,7 @@ private:
     Value strLen = rewriter.create<LLVM::ConstantOp>(loc,
         typeConverter->convertType(rewriter.getIndexType()),
         rewriter.getIntegerAttr(rewriter.getIndexType(), value.size() + 1));
+    // TODO: why shouldn't this be pointer to array type?
     Value charArr = rewriter.create<LLVM::AllocaOp>(loc,
         charTy.getPointerTo(), strLen, /*alignment=*/0);
 

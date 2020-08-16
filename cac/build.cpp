@@ -88,10 +88,24 @@ mlir::LLVM::LLVMFuncOp declare_void_func(mlir::LLVM::LLVMDialect *llvmDialect,
   return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
       llvmFnType);
 }
-void call_void_func(OpBuilder &builder, OwningModuleRef &module,
-    Location loc, mlir::LLVM::LLVMFuncOp &func)
+mlir::LLVM::LLVMFuncOp declare_alloc_obj_func(mlir::LLVM::LLVMDialect *llvmDialect,
+    OpBuilder &builder, OwningModuleRef &module, StringRef func)
 {
-  builder.create<LLVM::CallOp>(loc, func, ValueRange{});
+  auto llvmVoidPtrTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
+  auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidPtrTy, {},
+      /*isVarArg*/ false);
+  return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
+      llvmFnType);
+}
+mlir::LLVM::LLVMFuncOp declare_free_obj_func(mlir::LLVM::LLVMDialect *llvmDialect,
+    OpBuilder &builder, OwningModuleRef &module, StringRef func)
+{
+  auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+  auto llvmVoidPtrTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
+  auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+      {llvmVoidPtrTy}, /*isVarArg*/ false);
+  return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
+      llvmFnType);
 }
 
 } // anon namespace
@@ -121,11 +135,17 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
   // Names are contract with Casper runtime
   const char *INIT_PY_FUNC = "init_python";
   const char *FIN_PY_FUNC = "finalize_python";
+  const char *PY_ALLOC_OBJ_FUNC = "py_alloc_obj";
+  const char *PY_FREE_OBJ_FUNC = "py_free_obj";
 
   auto initPyFunc = declare_void_func(llvmDialect, builder, module,
       INIT_PY_FUNC);
   auto finPyFunc = declare_void_func(llvmDialect, builder, module,
       FIN_PY_FUNC);
+  auto pyAllocObjFunc = declare_alloc_obj_func(llvmDialect, builder, module,
+      PY_ALLOC_OBJ_FUNC);
+  auto pyFreeObjFunc = declare_free_obj_func(llvmDialect, builder, module,
+      PY_FREE_OBJ_FUNC);
 
   // create main() function
   auto mainTy = FunctionType::get({}, {builder.getI32Type()}, &context);
@@ -135,7 +155,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
   auto &entryBlock = *main.addEntryBlock();
   builder.setInsertionPointToStart(&entryBlock);
 
-  call_void_func(builder, module, loc, initPyFunc);
+  builder.create<LLVM::CallOp>(loc, initPyFunc, ValueRange{});
 
   // For now, we pre-allocate all data buffers, at the beginning of main()
   // and deallocate them at the end (we don't track lifetime of buffers).
@@ -225,6 +245,16 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
       }
       break;
     }
+    case cac::ValueImpl::PyObj: {
+      cac::PyObj *pyObj = static_cast<cac::PyObj*>(val.get());
+      auto pyObjImpl = pyObj->getImpl();
+      auto callOp = builder.create<LLVM::CallOp>(loc, pyAllocObjFunc,
+	  ValueRange{});
+      assert(callOp.getNumResults() == 1);
+      pyObjImpl->ref = callOp.getResult(0);
+      // TODO: cleanup at end of main
+      break;
+    }
     default:
       // TODO: figure out error reporting
       assert("unsupported value type");
@@ -243,7 +273,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
       invokeKernels(builder, context, *root, tg.datPrintEnabled);
   }
 
-  call_void_func(builder, module, loc, finPyFunc);
+  builder.create<LLVM::CallOp>(loc, finPyFunc, ValueRange{});
 
   // Return from main
   auto zeroVal = builder.create<mlir::ConstantOp>(loc,

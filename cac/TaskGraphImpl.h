@@ -10,6 +10,7 @@ public:
   enum ValueType {
     Scalar,
     Dat,
+    PyObj,
   };
 public:
   ValueImpl(enum ValueType type);
@@ -58,6 +59,11 @@ public:
 public:
   const int rows, cols;
   std::vector<double> vals;
+};
+
+class PyObjImpl : public ValueImpl {
+public:
+  PyObjImpl();
 };
 
 } // nameaspace cac
