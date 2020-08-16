@@ -1,14 +1,15 @@
 #ifndef CAC_EXECUTABLE_H
 #define CAC_EXECUTABLE_H
 
-#include "TaskGraph.h"
-
 namespace cac {
+	class TaskGraph;
+	class Platform;
+
 	class ExecutableImpl;
 
 	class Executable {
 	public:
-		Executable(TaskGraph &tg);
+		Executable(TaskGraph &tg, Platform &plat);
 		~Executable();
 
 		int emitLLVMIR(); // to stderr

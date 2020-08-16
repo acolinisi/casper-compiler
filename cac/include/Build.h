@@ -12,10 +12,11 @@ namespace mlir {
 
 namespace cac {
   class TaskGraph;
+  class Platform;
 }
 
-int buildMLIRFromGraph(cac::TaskGraph &tg, mlir::MLIRContext &context,
-    mlir::OwningModuleRef &module);
+int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
+    mlir::MLIRContext &context, mlir::OwningModuleRef &module);
 
 void compileHalideKernel(const std::string &generator,
     std::map<std::string, std::string> &params);

@@ -13,6 +13,5 @@ int main(int argc, char **argv) {
 	Task& task_py = tg.createTask(PyKernel("kern", "save_sol"), {sol},
 			{&task_fem});
 
-	Executable exec(tg);
-	return exec.emitLLVMIR(); // to stderr
+	return compile(tg);
 }

@@ -25,6 +25,5 @@ int main(int argc, char **argv) {
 
 	Task& task_save = tg.createTask(CKernel("bmp_save"), {img_blurred});
 
-	Executable exec(tg);
-	return exec.emitLLVMIR(); // to stderr
+	return compile(tg);
 }

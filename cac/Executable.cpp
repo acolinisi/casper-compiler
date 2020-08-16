@@ -12,6 +12,7 @@
 
 #include "Executable.h"
 #include "TaskGraph.h"
+#include "Platform.h"
 #include "Build.h"
 
 #include "toy/Dialect.h"
@@ -134,13 +135,13 @@ int loadMLIR(mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
   return 0;
 }
 
-int loadAndProcessMLIR(cac::TaskGraph &tg, mlir::MLIRContext &context,
-                       mlir::OwningModuleRef &module) {
+int loadAndProcessMLIR(cac::TaskGraph &tg, cac::Platform &plat,
+    mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
 #if 0
   if (int error = loadMLIR(context, module))
     return error;
 #else
-  if (int error = buildMLIRFromGraph(tg, context, module))
+  if (int error = buildMLIRFromGraph(tg, plat, context, module))
     return error;
 #endif
 
@@ -270,9 +271,9 @@ void registerDialects() {
   mlir::registerDialect<mlir::toy::ToyDialect>();
 }
 
-int build(cac::TaskGraph &tg, mlir::MLIRContext &context,
-    mlir::OwningModuleRef &module) {
-  if (int error = loadAndProcessMLIR(tg, context, module))
+int build(cac::TaskGraph &tg, cac::Platform &plat,
+    mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
+  if (int error = loadAndProcessMLIR(tg, plat, context, module))
     return error;
 
   // If we aren't exporting to non-mlir, then we are done.
@@ -307,9 +308,10 @@ namespace cac {
     delete impl;
   }
 
-  Executable::Executable(cac::TaskGraph &tg) : impl(new ExecutableImpl()) {
+  Executable::Executable(cac::TaskGraph &tg, cac::Platform &plat)
+    : impl(new ExecutableImpl()) {
     registerDialects(); // must happen before constructing contexts
-    build(tg, *impl->context, impl->module);
+    build(tg, plat, *impl->context, impl->module);
   }
 
   int Executable::emitLLVMIR() {

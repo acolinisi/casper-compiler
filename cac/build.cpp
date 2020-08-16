@@ -110,8 +110,8 @@ mlir::LLVM::LLVMFuncOp declare_free_obj_func(mlir::LLVM::LLVMDialect *llvmDialec
 
 } // anon namespace
 
-int buildMLIRFromGraph(cac::TaskGraph &tg, MLIRContext &context,
-    OwningModuleRef &module)
+int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
+    MLIRContext &context, OwningModuleRef &module)
 {
   std::vector<std::string> generators;
   for (auto &task : tg.tasks) {

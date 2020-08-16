@@ -33,6 +33,5 @@ int main(int argc, char **argv) {
 	Task& task_bright = tg.createTask(HalideKernel("halide_bright"),
 			{offset, matA, matC}, {&task_add});
 
-	Executable exec(tg);
-	return exec.emitLLVMIR(); // to stderr
+	return compile(tg);
 }
