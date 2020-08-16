@@ -24,6 +24,7 @@ add_llvm_library(cac
   casper.cpp
   halide.cpp
   Executable.cpp
+  KnowledgeBase.cpp
   Platform.cpp
   TaskGraph.cpp
   TaskGraphImpl.cpp

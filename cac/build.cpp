@@ -1,4 +1,5 @@
 #include "Build.h"
+#include "KnowledgeBase.h"
 #include "TaskGraph.h"
 #include "TaskGraphImpl.h"
 
@@ -111,6 +112,7 @@ mlir::LLVM::LLVMFuncOp declare_free_obj_func(mlir::LLVM::LLVMDialect *llvmDialec
 } // anon namespace
 
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
+    cac::KnowledgeBase &kb,
     MLIRContext &context, OwningModuleRef &module)
 {
   std::vector<std::string> generators;
@@ -120,7 +122,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
   }
 
   for (auto& generator : generators) {
-    std::map<std::string, std::string> params; // TODO: from KnowledgeBase
+    auto& params = kb.getParams(generator);
     compileHalideKernel(generator, params);
   }
   compileHalideRuntime();

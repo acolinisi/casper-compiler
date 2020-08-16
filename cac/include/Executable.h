@@ -4,12 +4,13 @@
 namespace cac {
 	class TaskGraph;
 	class Platform;
+	class KnowledgeBase;
 
 	class ExecutableImpl;
 
 	class Executable {
 	public:
-		Executable(TaskGraph &tg, Platform &plat);
+		Executable(TaskGraph &tg, Platform &plat, KnowledgeBase &kb);
 		~Executable();
 
 		int emitLLVMIR(); // to stderr

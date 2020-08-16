@@ -72,7 +72,7 @@ const CompilerLoggerFactory no_compiler_logger_factory =
 };
 
 void compileHalideKernel(const std::string &generator,
-    std::map<std::string, std::string> &params) {
+    const std::map<std::string, std::string> &params) {
   std::vector<Target> targets{target};
   std::string file_base_name("lib" + generator);
   std::string function_name(generator);

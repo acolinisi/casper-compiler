@@ -13,13 +13,15 @@ namespace mlir {
 namespace cac {
   class TaskGraph;
   class Platform;
+  class KnowledgeBase;
 }
 
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
+    cac::KnowledgeBase &kb,
     mlir::MLIRContext &context, mlir::OwningModuleRef &module);
 
 void compileHalideKernel(const std::string &generator,
-    std::map<std::string, std::string> &params);
+    const std::map<std::string, std::string> &params);
 void compileHalideRuntime();
 
 #endif // CAC_BUILD_H
