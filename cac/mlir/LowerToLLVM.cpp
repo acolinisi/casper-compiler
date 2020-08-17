@@ -481,13 +481,9 @@ public:
     // necessary.
     StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
     assert(funcAttr); // verified
-#if 0
-    StringRef func = funcAttr.getValue();
-#else
     std::string funcStr = funcAttr.getValue().str();
     funcStr += "_v0";
     StringRef func{funcStr};
-#endif
 
     // MemRefType -> struct halide_buffer_t
 
@@ -676,11 +672,31 @@ public:
       }
     }
 
-    auto kernRef = getOrInsertKernFunc(rewriter, parentModule, func, argTypes,
-        llvmDialect);
+    auto funcTypeAndRef = getOrInsertKernFunc(rewriter, parentModule,
+        func, argTypes, llvmDialect);
+    LLVM::LLVMType &funcType = funcTypeAndRef.first;
+    FlatSymbolRefAttr &kernRef = funcTypeAndRef.second;
+
+    Value one = rewriter.create<LLVM::ConstantOp>(loc,
+        typeConverter->convertType(rewriter.getIndexType()),
+        rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
+    Value funcPtrAddr = rewriter.create<LLVM::AllocaOp>(loc,
+        funcType.getPointerTo().getPointerTo(), one, /*alignment=*/0);
+
+    auto funcAddr = rewriter.create<LLVM::AddressOfOp>(loc,
+        funcType.getPointerTo(), kernRef);
+    rewriter.create<LLVM::StoreOp>(loc, funcAddr, funcPtrAddr);
+
+    Value funcPtr = rewriter.create<LLVM::LoadOp>(loc, funcPtrAddr);
+
+    SmallVector<Value, 8> opArgVals{funcPtr};
+    for (auto &arg : argVals) {
+      opArgVals.push_back(arg);
+    }
 
     auto newOp = rewriter.create<LLVM::CallOp>(op->getLoc(),
-      funcOp, argVals);
+      LLVM::LLVMType::getVoidTy(llvmDialect), opArgVals,
+      ArrayRef<NamedAttribute>{});
 
     // Notify the rewriter that this operation has been removed.
     rewriter.eraseOp(op);
@@ -690,10 +706,11 @@ public:
 private:
   /// Return a symbol reference to the kernel function, inserting it into the
   /// module if necessary.
-  static FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
-      ModuleOp module, StringRef name, ArrayRef<LLVM::LLVMType> args,
-      LLVM::LLVMDialect *llvmDialect) {
+  static std::pair<LLVM::LLVMType, FlatSymbolRefAttr> getOrInsertKernFunc(
+      PatternRewriter &rewriter, ModuleOp module, StringRef name,
+      ArrayRef<LLVM::LLVMType> args, LLVM::LLVMDialect *llvmDialect) {
     auto *context = module.getContext();
+    LLVM::LLVMType llvmFnType;
     if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
 
       // Create a function declaration for the kernel, the signature is:
@@ -703,7 +720,7 @@ private:
       auto llvmI8Ty = LLVM::LLVMType::getInt8Ty(llvmDialect);
       auto llvmDTy = LLVM::LLVMType::getDoubleTy(llvmDialect);
 
-      auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy, args,
+      llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy, args,
           /*isVarArg*/ false);
 
       // Insert the printf function into the body of the parent module.
@@ -711,7 +728,9 @@ private:
       rewriter.setInsertionPointToStart(module.getBody());
       rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), name, llvmFnType);
     }
-    return SymbolRefAttr::get(name, context);
+    return std::pair<LLVM::LLVMType, FlatSymbolRefAttr>{
+      llvmFnType,
+      SymbolRefAttr::get(name, context)};
   }
 };
 } // end anonymous namespace
