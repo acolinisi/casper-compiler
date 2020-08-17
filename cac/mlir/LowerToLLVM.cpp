@@ -673,10 +673,9 @@ public:
     funcStr += "_v0";
     StringRef func{funcStr};
 
-    auto funcTypeAndRef = getOrInsertKernFunc(rewriter, parentModule,
-        func, argTypes, llvmDialect);
-    LLVM::LLVMType &funcType = funcTypeAndRef.first;
-    FlatSymbolRefAttr &kernRef = funcTypeAndRef.second;
+    LLVM::LLVMType funcType = getKernFuncType(argTypes, llvmDialect);
+    FlatSymbolRefAttr kernRef = getOrInsertKernFunc(rewriter, parentModule,
+        func, funcType);
 
     Value one = rewriter.create<LLVM::ConstantOp>(loc,
         typeConverter->convertType(rewriter.getIndexType()),
@@ -705,15 +704,11 @@ public:
   }
 
 private:
-  /// Return a symbol reference to the kernel function, inserting it into the
-  /// module if necessary.
-  static std::pair<LLVM::LLVMType, FlatSymbolRefAttr> getOrInsertKernFunc(
-      PatternRewriter &rewriter, ModuleOp module, StringRef name,
-      ArrayRef<LLVM::LLVMType> args, LLVM::LLVMDialect *llvmDialect) {
-    auto *context = module.getContext();
-    LLVM::LLVMType llvmFnType;
-    if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
 
+  // The prototype of the kernel function, which is:
+  //    `void (struct halide_buffer_t *, ...)`
+  static LLVM::LLVMType getKernFuncType(ArrayRef<LLVM::LLVMType> args,
+      LLVM::LLVMDialect *llvmDialect) {
       // Create a function declaration for the kernel, the signature is:
       //    `void (struct halide_buffer_t *, ...)`
       auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
@@ -721,17 +716,22 @@ private:
       auto llvmI8Ty = LLVM::LLVMType::getInt8Ty(llvmDialect);
       auto llvmDTy = LLVM::LLVMType::getDoubleTy(llvmDialect);
 
-      llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy, args,
+      return LLVM::LLVMType::getFunctionTy(llvmVoidTy, args,
           /*isVarArg*/ false);
+  }
 
+  /// Return a symbol reference to the kernel function, inserting it into the
+  /// module if necessary.
+  static FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
+      ModuleOp module, StringRef name, LLVM::LLVMType llvmFnType) {
+    auto *context = module.getContext();
+    if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
       // Insert the printf function into the body of the parent module.
       PatternRewriter::InsertionGuard insertGuard(rewriter);
       rewriter.setInsertionPointToStart(module.getBody());
       rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), name, llvmFnType);
     }
-    return std::pair<LLVM::LLVMType, FlatSymbolRefAttr>{
-      llvmFnType,
-      SymbolRefAttr::get(name, context)};
+    return SymbolRefAttr::get(name, context);
   }
 };
 } // end anonymous namespace
