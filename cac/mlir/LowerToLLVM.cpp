@@ -674,8 +674,7 @@ public:
         llvmDialect);
 
     auto newOp = rewriter.create<LLVM::CallOp>(op->getLoc(),
-      LLVM::LLVMType::getVoidTy(llvmDialect), argVals,
-      ArrayRef<NamedAttribute>{NamedAttribute(Identifier::get(StringRef("callee", 6), parentModule.getContext()), kernRef)});
+      funcOp, argVals);
 
     // Notify the rewriter that this operation has been removed.
     rewriter.eraseOp(op);
