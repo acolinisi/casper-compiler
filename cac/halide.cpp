@@ -72,11 +72,12 @@ const CompilerLoggerFactory no_compiler_logger_factory =
 };
 
 void compileHalideKernel(const std::string &generator,
+    const std::string &artifact,
     const std::map<std::string, std::string> &params) {
-  std::vector<Target> targets{target};
-  std::string file_base_name("lib" + generator);
-  std::string function_name(generator);
+  std::string file_base_name("lib" + artifact);
+  std::string function_name(artifact);
   bool build_gradient_module = false; // TODO: investigate, also 'true' breaks
+  std::vector<Target> targets{target};
 
   std::string base_path = compute_base_path(output_dir, function_name,
       file_base_name);

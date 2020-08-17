@@ -481,7 +481,13 @@ public:
     // necessary.
     StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
     assert(funcAttr); // verified
+#if 0
     StringRef func = funcAttr.getValue();
+#else
+    std::string funcStr = funcAttr.getValue().str();
+    funcStr += "_v0";
+    StringRef func{funcStr};
+#endif
 
     // MemRefType -> struct halide_buffer_t
 

@@ -1,4 +1,5 @@
 #include "Build.h"
+#include "Platform.h"
 #include "KnowledgeBase.h"
 #include "TaskGraph.h"
 #include "TaskGraphImpl.h"
@@ -109,6 +110,12 @@ mlir::LLVM::LLVMFuncOp declare_free_obj_func(mlir::LLVM::LLVMDialect *llvmDialec
       llvmFnType);
 }
 
+std::string makeHalideArtifactName(const std::string &generator,
+    const cac::NodeDesc &nodeDesc)
+{
+      return generator + "_v" + std::to_string(nodeDesc.id);
+}
+
 } // anon namespace
 
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
@@ -122,8 +129,13 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
   }
 
   for (auto& generator : generators) {
-    auto& params = kb.getParams(generator);
-    compileHalideKernel(generator, params);
+    // Compile as many variants as there are node types in the platform
+    for (auto &nodeDesc : plat.nodeTypes) {
+      const std::string &artifact =
+	makeHalideArtifactName(generator, nodeDesc);
+      auto& params = kb.getParams(generator, nodeDesc);
+      compileHalideKernel(generator, artifact, params);
+    }
   }
   compileHalideRuntime();
 

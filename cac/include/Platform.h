@@ -1,13 +1,22 @@
 #ifndef CAC_PLATFORM_H
 #define CAC_PLATFORM_H
 
+#include <vector>
+
 namespace cac {
+	class NodeDesc {
+	public:
+		NodeDesc(unsigned id);
+	public:
+		unsigned id;
+	};
+
 	class Platform {
 	public:
 		Platform();
-		Platform(unsigned numNodeTypes);
+		Platform(std::vector<NodeDesc> nodeTypes);
 	public:
-		unsigned numNodeTypes;
+		std::vector<NodeDesc> nodeTypes;
 	};
 } // namespace cac
 

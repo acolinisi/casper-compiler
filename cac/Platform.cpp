@@ -2,7 +2,9 @@
 
 namespace cac {
 
-Platform::Platform() : numNodeTypes(1) {}
-Platform::Platform(unsigned numNodeTypes) : numNodeTypes(numNodeTypes) {}
+NodeDesc::NodeDesc(unsigned id) : id(id) {}
+
+Platform::Platform() : nodeTypes{0} {}
+Platform::Platform(std::vector<NodeDesc> nodeTypes) : nodeTypes(nodeTypes) {}
 
 } // namespace cac

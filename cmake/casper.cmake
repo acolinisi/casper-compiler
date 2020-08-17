@@ -6,7 +6,7 @@ function(casper_add_exec target meta_prog)
 	cmake_parse_arguments(FARG
 		""
 		""
-		"SOURCES;HALIDE_GENERATORS" ${ARGN})
+		"SOURCES;HALIDE_GENERATORS;NODE_TYPE_IDS" ${ARGN})
 
 	find_package(Threads)
 
@@ -19,8 +19,14 @@ function(casper_add_exec target meta_prog)
 	target_link_libraries(${meta_prog} LINK_PUBLIC ${CASPER_COMPILER_LIB})
 
 	foreach(gen ${FARG_HALIDE_GENERATORS})
-		set(halide_lib lib${gen}.a)
-		list(APPEND halide_libs ${halide_lib})
+		# TODO: CAC should generate a .cmake file with this var set
+		#       per each application
+		foreach(node_type_id ${FARG_NODE_TYPE_IDS})
+			# nameing convention contract with
+			# makeHalideArtifactName() in build.cpp
+			set(halide_lib lib${gen}_v${node_type_id}.a)
+			list(APPEND halide_libs ${halide_lib})
+		endforeach()
 	endforeach()
 
 	list(APPEND halide_libs libhalide_runtime.a)

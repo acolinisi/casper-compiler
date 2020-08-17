@@ -21,6 +21,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
     mlir::MLIRContext &context, mlir::OwningModuleRef &module);
 
 void compileHalideKernel(const std::string &generator,
+    const std::string &artifact,
     const std::map<std::string, std::string> &params);
 void compileHalideRuntime();
 

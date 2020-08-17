@@ -5,14 +5,19 @@
 #include <string>
 
 namespace cac {
+	class Platform;
+	class NodeDesc;
+
 	class KnowledgeBase {
 	public:
 		using ParamMap = std::map<std::string, std::string>;
 	public:
 		KnowledgeBase();
-		const ParamMap& getParams(const std::string &kernelName);
+		const ParamMap& getParams(const std::string &kernelName,
+				const NodeDesc &nodeDesc);
 	public:
-		std::map<std::string, ParamMap> params;
+		// kernel name -> node type id -> param -> value
+		std::map<std::string, std::map<unsigned, ParamMap>> params;
 	};
 } // namespace cac
 
