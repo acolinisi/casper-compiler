@@ -22,19 +22,28 @@ namespace {
 
 // Traverse the task graph in depth-first order
 void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
-    bool printDat)
+    cac::Platform &plat, bool printDat)
 {
   // Constant dat; TODO: support non-constant buffer
 
   for (cac::Task *dep : task.deps) {
     if (!dep->visited)
-      invokeKernels(builder, context, *dep, printDat);
+      invokeKernels(builder, context, *dep, plat, printDat);
   }
 
   // Invoke the kernel
   auto funcAttr = StringAttr::get(StringRef(task.func), &context);
   NamedAttribute funcNAttr(Identifier::get(StringRef("func"), &context),
       funcAttr);
+
+  std::vector<Attribute> variants;
+  for (auto &nodeDesc : plat.nodeTypes) {
+    auto idAttr = IntegerAttr::get(builder.getI32Type(), nodeDesc.id);
+    variants.push_back(idAttr);
+  }
+  auto variantsAttr = ArrayAttr::get(variants, &context);
+  NamedAttribute variantsNAttr(
+      Identifier::get(StringRef("variants"), &context), variantsAttr);
 
   std::vector<Value> args;
   for (cac::Value *val : task.args) {
@@ -48,12 +57,12 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
   case cac::Task::Halide:
       builder.create<toy::HalideKernelOp>(builder.getUnknownLoc(),
 	ArrayRef<Type>{}, ValueRange(args),
-	ArrayRef<NamedAttribute>{funcNAttr});
+	ArrayRef<NamedAttribute>{funcNAttr, variantsNAttr});
       break;
   case cac::Task::C:
       builder.create<toy::KernelOp>(builder.getUnknownLoc(),
 	ArrayRef<Type>{}, ValueRange(args),
-	ArrayRef<NamedAttribute>{funcNAttr});
+	ArrayRef<NamedAttribute>{funcNAttr, variantsNAttr});
       break;
   case cac::Task::Python: {
       cac::PyTask& pyTask = static_cast<cac::PyTask&>(task);
@@ -62,7 +71,7 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
 	    &context), pyModAttr);
       builder.create<toy::PyKernelOp>(builder.getUnknownLoc(),
 	ArrayRef<Type>{}, ValueRange(args),
-	ArrayRef<NamedAttribute>{pyModNAttr, funcNAttr});
+	ArrayRef<NamedAttribute>{pyModNAttr, funcNAttr, variantsNAttr});
       break;
   }
   default:
@@ -285,7 +294,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
   //  std::unique_ptr<Task>& root = *rooti;
   for (std::unique_ptr<cac::Task>& root : tg.tasks) {
     if (!root->visited)
-      invokeKernels(builder, context, *root, tg.datPrintEnabled);
+      invokeKernels(builder, context, *root, plat, tg.datPrintEnabled);
   }
 
   builder.create<LLVM::CallOp>(loc, finPyFunc, ValueRange{});

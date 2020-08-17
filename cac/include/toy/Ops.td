@@ -241,7 +241,8 @@ def HalideKernelOp : Toy_Op<"halide_kernel"> {
   // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
   let arguments = (ins
       Variadic<AnyTypeOf<[AnyTensor, AnyMemRef, AnyInteger, AnyFloat]>>:$input,
-      StrAttr:$func
+      StrAttr:$func,
+      I32ArrayAttr:$variants
   );
 
   let assemblyFormat = "`(`$input`)` attr-dict `:` `(`type($input)`)`";
