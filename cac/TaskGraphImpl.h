@@ -29,10 +29,9 @@ public:
 public:
   ScalarImpl(enum ScalarType type, bool initialized);
   virtual mlir::Type getType(mlir::OpBuilder &builder) = 0;
-  virtual mlir::LLVM::LLVMType getLLVMType(mlir::OpBuilder &builder,
+  virtual mlir::LLVM::LLVMType getLLVMType(
       mlir::LLVM::LLVMDialect *llvmDialect) = 0;
-  virtual mlir::Attribute getInitValueAttr(mlir::OpBuilder &builder,
-      mlir::LLVM::LLVMDialect *llvmDialect) = 0;
+  virtual mlir::Attribute getInitValue(mlir::OpBuilder &builder) = 0;
 public:
   enum ScalarType type;
   const bool initialized;
@@ -44,10 +43,9 @@ public:
 	IntScalarImpl(uint8_t width, uint64_t v);
 
 	virtual mlir::Type getType(mlir::OpBuilder &builder);
-	virtual mlir::LLVM::LLVMType getLLVMType(mlir::OpBuilder &builder,
+	virtual mlir::LLVM::LLVMType getLLVMType(
 	    mlir::LLVM::LLVMDialect *llvmDialect);
-	virtual mlir::Attribute getInitValueAttr(mlir::OpBuilder &builder,
-	    mlir::LLVM::LLVMDialect *llvmDialect);
+	virtual mlir::Attribute getInitValue(mlir::OpBuilder &builder);
 public:
   const uint8_t width;
   const uint64_t v; // type large enough for max width

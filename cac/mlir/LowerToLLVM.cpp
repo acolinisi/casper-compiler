@@ -43,6 +43,7 @@ using namespace mlir;
 //===----------------------------------------------------------------------===//
 
 namespace {
+
 /// Lowers `toy.print` to a loop nest calling `printf` on each of the individual
 /// elements of the array.
 class PrintOpLowering : public ConversionPattern {

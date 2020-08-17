@@ -21,16 +21,14 @@ IntScalarImpl::IntScalarImpl(uint8_t width, uint64_t v)
 mlir::Type IntScalarImpl::getType(mlir::OpBuilder &builder) {
 	return builder.getIntegerType(width);
 }
-mlir::LLVM::LLVMType IntScalarImpl::getLLVMType(mlir::OpBuilder &builder,
+mlir::LLVM::LLVMType IntScalarImpl::getLLVMType(
 		mlir::LLVM::LLVMDialect *llvmDialect) {
 	return mlir::LLVM::LLVMType::getIntNTy(llvmDialect, width);
 }
 
-mlir::Attribute IntScalarImpl::getInitValueAttr(mlir::OpBuilder &builder,
-		mlir::LLVM::LLVMDialect *llvmDialect) {
+mlir::Attribute IntScalarImpl::getInitValue(mlir::OpBuilder &builder) {
 	// APInt is necessary, not sure why the uint64_t overload produces 0 value
-	return mlir::IntegerAttr::get(getLLVMType(builder, llvmDialect),
-			mlir::APInt(width, v));
+	return mlir::IntegerAttr::get(getType(builder), mlir::APInt(width, v));
 }
 
 DatImpl::DatImpl(int rows, int cols, const std::vector<double> &vals)

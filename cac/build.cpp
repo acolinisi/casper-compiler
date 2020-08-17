@@ -182,17 +182,18 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
       // Allocate on the stack, pass to kernel by value.
       // TODO: stay in std dialect! Have to go down to LLVM types because the
       // alloca in MLIR std dialect is for memrefs only (?).
-      auto sTy = scalarImpl->getLLVMType(builder, llvmDialect);
+      auto sTy = scalarImpl->getLLVMType(llvmDialect);
       auto sStdTy = scalarImpl->getType(builder);
-      auto idxTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
+      // TODO: assumes IndexType is 64-bit
+      auto idxTy = LLVM::LLVMType::getInt64Ty(llvmDialect);
       Value one = builder.create<LLVM::ConstantOp>(loc, idxTy,
-	  builder.getIntegerAttr(idxTy, 1));
+	  builder.getIntegerAttr(builder.getIndexType(), 1));
       auto sPtr = builder.create<LLVM::AllocaOp>(loc, sTy.getPointerTo(),
 	  one, /*align=*/ 0);
 
       if (scalarImpl->initialized) {
 	auto initVal = builder.create<LLVM::ConstantOp>(loc, sTy,
-	    scalarImpl->getInitValueAttr(builder, llvmDialect));
+	    scalarImpl->getInitValue(builder));
 	builder.create<LLVM::StoreOp>(loc, initVal, sPtr);
       }
       auto loaded = builder.create<LLVM::LoadOp>(loc, sPtr);
