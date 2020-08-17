@@ -25,5 +25,6 @@ int main(int argc, char **argv) {
 
 	Task& task_save = tg.createTask(CKernel("bmp_save"), {img_blurred});
 
-	return compile(tg);
+	Platform plat{/* node types */ {0, 1}};
+	return compile(tg, plat);
 }
