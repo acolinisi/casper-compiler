@@ -478,14 +478,6 @@ public:
 
     ModuleOp parentModule = op->getParentOfType<ModuleOp>();
 
-    // Get a symbol reference to the kernel function, inserting it if
-    // necessary.
-    StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
-    assert(funcAttr); // verified
-    std::string funcStr = funcAttr.getValue().str();
-    funcStr += "_v0";
-    StringRef func{funcStr};
-
     // MemRefType -> struct halide_buffer_t
 
     SmallVector<LLVM::LLVMType, 8> argTypes;
@@ -672,6 +664,14 @@ public:
         return failure();
       }
     }
+
+    // Get a symbol reference to the kernel function, inserting it if
+    // necessary.
+    StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
+    assert(funcAttr); // verified
+    std::string funcStr = funcAttr.getValue().str();
+    funcStr += "_v0";
+    StringRef func{funcStr};
 
     auto funcTypeAndRef = getOrInsertKernFunc(rewriter, parentModule,
         func, argTypes, llvmDialect);
