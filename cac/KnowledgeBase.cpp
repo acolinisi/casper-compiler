@@ -12,7 +12,7 @@ KnowledgeBase::KnowledgeBase() {
 		{ "halide_bright", { { 0, { }, }, } },
 		{ "halide_blur",
 			{
-				{ 0,
+				{ 0, // very slow (>1m)
 					{
 						{ "p1", "1" },
 						{ "p2", "1" },
@@ -20,12 +20,12 @@ KnowledgeBase::KnowledgeBase() {
 						{ "p4", "1" },
 					},
 				},
-				{ 1,
+				{ 1, // very fast (<14s)
 					{
 						{ "p1", "2" },
-						{ "p2", "2" },
-						{ "p3", "2" },
-						{ "p4", "2" },
+						{ "p2", "8" },
+						{ "p3", "8" },
+						{ "p4", "1" },
 					},
 				},
 			},

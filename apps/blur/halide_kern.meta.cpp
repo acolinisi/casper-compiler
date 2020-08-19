@@ -10,46 +10,39 @@ public:
     GeneratorParam<int> tile_y{"tile_y", /* 8 */ 1};   // Y tile.
 
     // TODO: name descriptively
-#if 1 // big: 120 s , small: 2.6s
     GeneratorParam<int> p1{"p1", 1};
     GeneratorParam<int> p2{"p2", 1};
     GeneratorParam<int> p3{"p3", 1};
     GeneratorParam<int> p4{"p4", 1};
-#else
-#if 1 // big: 10.8 s, small: 1.6 s
-    GeneratorParam<int> p1{"p1", 6};
-    GeneratorParam<int> p2{"p2", 6};
-    GeneratorParam<int> p3{"p3", 2};
-    GeneratorParam<int> p4{"p4", 2};
-#else // big: 9.5s, small: 1.5s
-    GeneratorParam<int> p1{"p1", 6};
-    GeneratorParam<int> p2{"p2", 10};
-    GeneratorParam<int> p3{"p3", 6};
-    GeneratorParam<int> p4{"p4", 4};
-#endif
-#endif
 
     Input<Buffer<double>> input{"input", 2};
     Output<Buffer<double>> blur_y{"blur_y", 2};
 
-    static const int BLUR_BOUNDARY = 2; /* depends on pipeline */
+    // Above 64 takes too long to compile
+    static const int BLUR_WIDTH = 16;
+
+    // TODO: it's bad we have to know the width (see comments below)
+    static const int IMG_WIDTH = 1695; // casper.bmp
+    //static const int IMG_WIDTH = 16950; // casper-tiled10.bmp
+    // static const int IMG_WIDTH = 27120; // casper-tiled20.bmp
 
     void generate() {
         Func blur_x("blur_x");
         Var x("x"), y("y"), xi("xi"), yi("yi");
 
-        // The algorithm
-        blur_x(x, y) = (input(x, y) + input(x + 1, y) + input(x + 2, y)) / 3;
-        blur_y(x, y) = (blur_x(x, y) + blur_x(x, y + 1) + blur_x(x, y + 2)) / 3;
+        Expr e_x{0.0}, e_y{0.0};
+        for (int i = 0; i < BLUR_WIDTH; ++i)
+             e_x += Expr{1.0/(i+1)} * input(x + i, y);
+        blur_x(x, y) = e_x;
+
+        for (int i = 0; i < BLUR_WIDTH; ++i)
+            e_y += Expr{1.0/(i+1)} * blur_x(x, y + i);
+        blur_y(x, y) = e_y;
 
         // CPU schedule.
 #if 0
         blur_y.split(y, y, yi, 8).parallel(y).vectorize(x, 8);
         blur_x.store_at(blur_y, y).compute_at(blur_y, yi).vectorize(x, 8);
-#else
-#if 0
-        blur_y.split(y, y, yi, 2).parallel(y).vectorize(x, 2);
-        blur_x.store_at(blur_y, y).compute_at(blur_y, yi).vectorize(x, 2);
 #else
         Var x_i("x_i");
         Var x_i_vi("x_i_vi");
@@ -86,19 +79,14 @@ public:
                 .parallel(x_o);
         }
 #endif
-#endif
 
         // Match mem layout to Casper Dat buffers (see comments in the other
         // generator)
         // TODO: bad that not agnostic to secondary dim size, but how else?
-#if 1
-        int img_width = 1695;
-#else
-        int img_width = 16950;
-#endif
-        input.dim(0).set_stride(img_width);
+
+        input.dim(0).set_stride(IMG_WIDTH);
         input.dim(1).set_stride(1);
-        blur_y.dim(0).set_stride(img_width - BLUR_BOUNDARY);
+        blur_y.dim(0).set_stride(IMG_WIDTH - BLUR_WIDTH - 1);
         blur_y.dim(1).set_stride(1);
     }
 };
