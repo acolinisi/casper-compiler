@@ -72,6 +72,7 @@ void save_graph(graph_t &g, std::string filename)
 	return;
 }
 
+#if 0
 int main()
 {
 	graph_t KB;
@@ -115,3 +116,4 @@ int main()
 
     return 0;
 }
+#endif

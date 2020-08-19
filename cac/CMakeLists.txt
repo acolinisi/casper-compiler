@@ -66,6 +66,7 @@ target_link_libraries(cac
 
   PUBLIC
   Halide::Halide
+  knowbase
   )
 
 mlir_check_link_libraries(cac)

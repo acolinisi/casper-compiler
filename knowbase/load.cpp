@@ -166,6 +166,7 @@ std::vector<float> select_variant(float input_dimension, graph_t KB, std::vector
     return selected_variant;
 }
 
+#if 0
 int main()
 {
 	graph_t KB;
@@ -191,3 +192,4 @@ int main()
 
     return 0;
 }
+#endif
