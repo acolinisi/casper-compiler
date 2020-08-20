@@ -17,29 +17,7 @@
 #include "model.h"
 #include "step.h"
 #include "kernel_map.h"
-
-typedef struct vertex_properties
-{
-	bool is_step = false, is_kernel = false, is_hardware = false;
-	int id;
-	Kernel_t *kernel;
-	Hardware_t *hardware;
-	Step_t *step;
-}vertex_properties_t;
-
-typedef struct edge_properties
-{
-	bool is_performance_model = false, is_kernel_map = false;
-	int id;
-	Performance_model_t *performance_model;
-	Kernel_map_t *kernel_map;
-}edge_properties_t;
-
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, vertex_properties_t, edge_properties_t> graph_t;
-typedef boost::graph_traits<graph_t>::vertex_descriptor vertex_descriptor_t;
-typedef graph_t::edge_descriptor edge_descriptror_t;
-typedef boost::graph_traits<graph_t>::vertex_iterator vertex_iter;
-typedef boost::graph_traits<graph_t>::edge_iterator edge_iter;
+#include "knowbase.h"
 
 std::vector<vertex_descriptor_t> load_graph(graph_t &g, std::string filename)
 {
@@ -51,11 +29,11 @@ std::vector<vertex_descriptor_t> load_graph(graph_t &g, std::string filename)
 	// dp.property("edge_properties", get(&edge_properties_t::is_kernel_map, g));
 	// dp.property("edge_properties", get(&edge_properties_t::is_performance_model, g));
 	// dp.property("edge_properties", get(&edge_properties_t::id, g));
-	// std::ifstream in(filename+"_sturcture.xml", std::ios::in);
+	// std::ifstream in(filename+".structure.xml", std::ios::in);
     // boost::read_graphml(in, g, dp);
     // in.close();
     
-    std::ifstream in(filename + "_content.xml", std::ios::in);
+    std::ifstream in(filename + ".content.xml", std::ios::in);
     std::vector<vertex_descriptor_t> vertices;
     while (!in.eof())
     {
@@ -121,10 +99,11 @@ std::vector<vertex_descriptor_t> load_graph(graph_t &g, std::string filename)
 
 // input: data dimension
 // output: predicted best schedule
-std::vector<float> select_variant(float input_dimension, graph_t KB, std::vector<vertex_descriptor_t> vertices){
+std::vector<float> select_variant(float input_dimension, graph_t KB,
+        std::vector<vertex_descriptor_t> vertices,
+        const std::string &candidates_filename) {
     
-    std::string data("../halide_blur_i7_candidates.csv");
-    std::ifstream in(data.c_str());
+    std::ifstream in(candidates_filename.c_str());
     if (!in.is_open()) return {0, 0, 0, 0};
     
     typedef boost::tokenizer<boost::escaped_list_separator<char> > Tokenizer;

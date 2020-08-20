@@ -2,7 +2,7 @@
 // Created by sergio on 12/05/19.
 //
 
-#include "../include/Model.h"
+#include "Model.h"
 
 Model::Model(const std::string& model_filename, const std::vector<uint8_t>& config_options) {
     this->status = TF_NewStatus();

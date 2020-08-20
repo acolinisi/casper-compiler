@@ -4,8 +4,8 @@
 #include <string.h>
 #include "model.h"
 #include "global.h"
-#include "include/Model.h" 
-#include "include/Tensor.h" 
+#include "Model.h"
+#include "Tensor.h"
 
 Linear_1d_t::Linear_1d_t()
 {

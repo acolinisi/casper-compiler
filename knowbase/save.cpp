@@ -15,29 +15,7 @@
 #include "model.h"
 #include "step.h"
 #include "kernel_map.h"
-
-typedef struct vertex_properties
-{
-	bool is_step = false, is_kernel = false, is_hardware = false;
-	int id;
-	Kernel_t *kernel;
-	Hardware_t *hardware;
-	Step_t *step;
-}vertex_properties_t;
-
-typedef struct edge_properties
-{
-	bool is_performance_model = false, is_kernel_map = false;
-	int id;
-	Performance_model_t *performance_model;
-	Kernel_map_t *kernel_map;
-}edge_properties_t;
-
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, vertex_properties_t, edge_properties_t> graph_t;
-typedef boost::graph_traits<graph_t>::vertex_descriptor vertex_descriptor_t;
-typedef graph_t::edge_descriptor edge_descriptror_t;
-typedef boost::graph_traits<graph_t>::vertex_iterator vertex_iter;
-typedef boost::graph_traits<graph_t>::edge_iterator edge_iter;
+#include "knowbase.h"
 
 void save_graph(graph_t &g, std::string filename)
 {
@@ -49,10 +27,10 @@ void save_graph(graph_t &g, std::string filename)
 	dp.property("edge_properties", get(&edge_properties_t::is_kernel_map, g));
 	dp.property("edge_properties", get(&edge_properties_t::is_performance_model, g));
 	dp.property("edge_properties", get(&edge_properties_t::id, g));
-	std::ofstream out(filename+"_sturcture.xml", std::ios::out);
+	std::ofstream out(filename+".structure.xml", std::ios::out);
 	write_graphml(out, g, dp, true);
 	out.close();
-	out.open(filename + "_content.xml", std::ios::out);
+	out.open(filename + ".content.xml", std::ios::out);
 	std::pair<vertex_iter, vertex_iter> vp;
 	for (vp = boost::vertices(g); vp.first != vp.second; ++vp.first)
 		if (g[*vp.first].is_hardware)

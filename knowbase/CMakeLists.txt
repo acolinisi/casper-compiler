@@ -10,8 +10,10 @@ add_library(knowbase SHARED
   model.cpp
   save.cpp
   step.cpp
-  src/Model.cpp
-  src/Tensor.cpp
+  Model.cpp
+  Tensor.cpp
 )
 
 target_link_libraries(knowbase PkgConfig::TensorFlow)
+target_include_directories(knowbase PUBLIC include)
+#include_directories(include)

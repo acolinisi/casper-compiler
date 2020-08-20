@@ -6,6 +6,7 @@ using namespace cac;
 
 int main(int argc, char **argv) {
 	TaskGraph tg;
+	Options opts(argc, argv);
 
 	int img_width = 1695, img_height = 1356; // casper.bmp
 	//int img_width = 16950, img_height = 13560; // casper-tiled10.bmp
@@ -30,5 +31,5 @@ int main(int argc, char **argv) {
 
 	// NOTE/TODO: node type ID list also present in CMakeLists.txt
 	Platform plat{/* node types */ {0, 1}};
-	return compile(tg, plat);
+	return compile(tg, plat, opts);
 }
