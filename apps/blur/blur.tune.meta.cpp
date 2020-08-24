@@ -73,9 +73,11 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	// std::vector<float> schedule = {1024, 4, 2, 2};
 	// std::cout << halide_i7.eval(dimension, schedule).exec_time << std::endl;
 
-	// TODO: shouldn't need to save and load to get vertices (use vtx iterator)
-	save_graph(kb_graph, kb_fname);
-	std::vector<vertex_descriptor_t> vertices = load_graph(kb_graph, kb_fname);
+	std::vector<vertex_descriptor_t> vertices;
+	auto v_it_range = boost::vertices(kb_graph);
+	for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
+		vertices.push_back(*it);
+	}
 
 	// Finds the best variant
 	std::vector<float> variant = select_variant(1024, kb_graph, vertices,
