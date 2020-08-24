@@ -1,6 +1,10 @@
 #ifndef CAC_EXECUTABLE_H
 #define CAC_EXECUTABLE_H
 
+// TODO: private header now: move from cac/include/ to cac/
+
+#include "llvm/Support/raw_ostream.h"
+
 namespace cac {
 	class TaskGraph;
 	class Platform;
@@ -13,7 +17,7 @@ namespace cac {
 		Executable(TaskGraph &tg, Platform &plat, KnowledgeBase &kb);
 		~Executable();
 
-		int emitLLVMIR(); // to stderr
+		int emitLLVMIR(llvm::raw_ostream &os);
 		int run();
 
 	private:

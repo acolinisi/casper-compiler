@@ -66,7 +66,7 @@ function(casper_add_exec target meta_prog)
 
 	# Run the meta-program
 	add_custom_command(OUTPUT ${target}.ll ${halide_libs}
-	  COMMAND ${meta_prog} ${kb_xml} ${kb_candidates} 2> ${target}.ll
+	  COMMAND ${meta_prog} ${kb_xml} ${kb_candidates}
 	  DEPENDS ${meta_prog} ${kb_xml})
 
 	# Compile the target harness

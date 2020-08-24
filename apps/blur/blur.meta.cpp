@@ -5,7 +5,7 @@
 using namespace cac;
 
 int main(int argc, char **argv) {
-	TaskGraph tg;
+	TaskGraph tg("blur"); // must match target name in CMake script
 	Options opts(argc, argv);
 
 	int img_width = 1695, img_height = 1356; // casper.bmp

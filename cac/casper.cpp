@@ -18,13 +18,21 @@ int compile(TaskGraph &tg, Platform &plat) {
 }
 
 int compile(TaskGraph &tg, Platform &plat, Options &opts) {
+	std::error_code ec;
+	llvm::StringRef out_fname(tg.name + ".ll");
+	llvm::raw_fd_ostream fout(out_fname, ec);
+	if (ec) {
+		std::cerr << "failed to open output file: "
+			<< out_fname.str() << ": " << ec.message() << std::endl;
+		return 1;
+	}
 
 	// TODO: populate KnowledgeBase through profiling
 	// TODO: accept "options" argument to put profiling under a CLI flag
 	KnowledgeBase kb(opts);
 
 	Executable exec(tg, plat, kb);
-	return exec.emitLLVMIR(); // to stderr
+	return exec.emitLLVMIR(fout);
 }
 
 } // namespace cac

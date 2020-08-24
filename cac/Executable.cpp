@@ -207,7 +207,7 @@ int dumpAST() {
   return 0;
 }
 
-int dumpLLVMIR(mlir::ModuleOp module) {
+int dumpLLVMIR(llvm::raw_ostream &os, mlir::ModuleOp module) {
   auto llvmModule = mlir::translateModuleToLLVMIR(module);
   if (!llvmModule) {
     llvm::errs() << "Failed to emit LLVM IR\n";
@@ -227,7 +227,7 @@ int dumpLLVMIR(mlir::ModuleOp module) {
     llvm::errs() << "Failed to optimize LLVM IR " << err << "\n";
     return -1;
   }
-  llvm::errs() << *llvmModule << "\n";
+  os << *llvmModule << "\n";
   return 0;
 }
 
@@ -316,8 +316,8 @@ namespace cac {
     build(tg, plat, kb, *impl->context, impl->module);
   }
 
-  int Executable::emitLLVMIR() {
-    return dumpLLVMIR(*impl->module);
+  int Executable::emitLLVMIR(llvm::raw_ostream &os) {
+    return dumpLLVMIR(os, *impl->module);
   }
 
   int Executable::run() {

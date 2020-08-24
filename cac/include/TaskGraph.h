@@ -117,7 +117,7 @@ namespace cac {
 
 	class TaskGraph {
 	public:
-		TaskGraph();
+		TaskGraph(const std::string &name);
 		Dat& createDat(int n, int m);
 		Dat& createDat(int n, int m, const std::vector<double> &vals);
 		PyObj& createPyObj();
@@ -139,6 +139,7 @@ namespace cac {
 		IntScalar& createIntScalar(std::unique_ptr<IntScalar> scalar);
 
 	public:
+		std::string name;
 		std::vector<std::unique_ptr<Value>> values;
 		std::vector<std::unique_ptr<Task>> tasks;
 		bool datPrintEnabled;

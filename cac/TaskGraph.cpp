@@ -34,7 +34,8 @@ PyObjImpl *PyObj::getImpl() {
 	return static_cast<PyObjImpl *>(impl);
 }
 
-TaskGraph::TaskGraph() : datPrintEnabled(false) { }
+TaskGraph::TaskGraph(const std::string &name) :
+	name(name), datPrintEnabled(false) { }
 
 Dat& TaskGraph::createDat(int n, int m) {
 	return createDat(n, m, {});
