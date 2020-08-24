@@ -104,7 +104,8 @@ std::vector<float> select_variant(float input_dimension, graph_t KB,
         const std::string &candidates_filename) {
     
     std::ifstream in(candidates_filename.c_str());
-    if (!in.is_open()) return {0, 0, 0, 0};
+    if (!in.is_open())
+        throw std::runtime_error("failed to open candidates file");
     
     typedef boost::tokenizer<boost::escaped_list_separator<char> > Tokenizer;
     std::vector<std::string > vec;
