@@ -100,8 +100,13 @@ std::vector<vertex_descriptor_t> load_graph(graph_t &g, std::string filename)
 // input: data dimension
 // output: predicted best schedule
 std::vector<float> select_variant(float input_dimension, graph_t KB,
-        std::vector<vertex_descriptor_t> vertices,
         const std::string &candidates_filename) {
+
+    std::vector<vertex_descriptor_t> vertices;
+    auto v_it_range = boost::vertices(KB);
+    for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
+            vertices.push_back(*it);
+    }
     
     std::ifstream in(candidates_filename.c_str());
     if (!in.is_open())

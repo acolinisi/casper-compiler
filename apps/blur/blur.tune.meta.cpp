@@ -59,9 +59,6 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	char *model_fname = "tf_models/model.pb";
 	char *model_cp_fname = "tf_models/my-model.ckpt";
 	const char *candidates_fname = "halide_blur_i7_candidates.small.csv";
-#if 0
-	const char *variants_fname = "blur.variants";
-#endif
 
 	const char *kb_fname = "blur"; // temporary file
 
@@ -73,15 +70,9 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	// std::vector<float> schedule = {1024, 4, 2, 2};
 	// std::cout << halide_i7.eval(dimension, schedule).exec_time << std::endl;
 
-	std::vector<vertex_descriptor_t> vertices;
-	auto v_it_range = boost::vertices(kb_graph);
-	for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
-		vertices.push_back(*it);
-	}
-
 	// Finds the best variant
-	std::vector<float> variant = select_variant(1024, kb_graph, vertices,
-	        candidates_fname);
+	std::vector<float> variant =
+		select_variant(1024, kb_graph, candidates_fname);
 
 	const char *kern_name = "halide_blur";
 	const NodeDesc nodeDesc{1}; // TODO: get from HW info in kb_graph

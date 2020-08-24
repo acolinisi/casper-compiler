@@ -50,7 +50,6 @@ void save_graph(graph_t &g, std::string filename);
 std::vector<vertex_descriptor_t> load_graph(graph_t &g,
 				std::string filename);
 std::vector<float> select_variant(float input_dimension, graph_t KB,
-		std::vector<vertex_descriptor_t> vertices,
 		const std::string &candidates_filename);
 
 #endif // KNOWBASE_H
