@@ -143,6 +143,12 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
       const std::string &artifact =
 	makeHalideArtifactName(generator, nodeDesc);
       auto& params = kb.getParams(generator, nodeDesc);
+
+      std::cout << "params for generator " << generator << ":" << std::endl;
+      for (auto &kv : params) {
+	std::cout << kv.first << " = " << kv.second << std::endl;
+      }
+
       compileHalideKernel(generator, artifact, params);
     }
   }

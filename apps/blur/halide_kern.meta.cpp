@@ -53,10 +53,17 @@ public:
         Var y_i("y_i");
         Var y_o("y_o");
 
+#if 0
         int v1 = pow(2,p1);
         int v2 = pow(2,p2);
         int v3 = pow(2,p3);
         int v4 = pow(2,p4);
+#else
+        int v1 = p1;
+        int v2 = p2;
+        int v3 = p3;
+        int v4 = p4;
+#endif
 
         {
             Var x = blur_x.args()[0];

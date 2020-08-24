@@ -5,7 +5,18 @@
 #include "Platform.h"
 #include "Options.h"
 
+#include "llvm/Support/raw_ostream.h"
+
+namespace {
+cac::TuneFunc *tune;
+} // namespace anon
+
 namespace cac {
+
+// see comments in casper.h
+void set_tune_func(TuneFunc &f) {
+	tune = &f;
+}
 
 int compile(TaskGraph &tg) {
 	Platform plat; // default target is the compilation host
@@ -13,26 +24,27 @@ int compile(TaskGraph &tg) {
 }
 
 int compile(TaskGraph &tg, Platform &plat) {
-	Options opts;
-	return compile(tg, plat, opts);
-}
 
-int compile(TaskGraph &tg, Platform &plat, Options &opts) {
-	std::error_code ec;
-	llvm::StringRef out_fname(tg.name + ".ll");
-	llvm::raw_fd_ostream fout(out_fname, ec);
-	if (ec) {
-		std::cerr << "failed to open output file: "
-			<< out_fname.str() << ": " << ec.message() << std::endl;
+	try {
+		std::error_code ec;
+		llvm::StringRef out_fname(tg.name + ".ll");
+		llvm::raw_fd_ostream fout(out_fname, ec);
+		if (ec) {
+			std::cerr << "failed to open output file: "
+				<< out_fname.str() << ": " << ec.message() << std::endl;
+			return 1;
+		}
+
+		KnowledgeBase db;
+		(*tune)(tg, db);
+
+		Executable exec(tg, plat, db);
+		return exec.emitLLVMIR(fout);
+
+	} catch (std::exception &exc) {
+		std::cerr << "Exception: " << exc.what() << std::endl;
 		return 1;
 	}
-
-	// TODO: populate KnowledgeBase through profiling
-	// TODO: accept "options" argument to put profiling under a CLI flag
-	KnowledgeBase kb(opts);
-
-	Executable exec(tg, plat, kb);
-	return exec.emitLLVMIR(fout);
 }
 
 } // namespace cac

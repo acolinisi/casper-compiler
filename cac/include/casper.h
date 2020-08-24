@@ -11,7 +11,14 @@ namespace cac {
 // Emits LLVM IR to stderr
 int compile(TaskGraph &tg);
 int compile(TaskGraph &tg, Platform &plat);
-int compile(TaskGraph &tg, Platform &plat, Options &opts);
+
+// TODO: currently this func is defined by the app, but Casper lib needs to
+// call it, so app needs to pass it to Casper lib as a callback pointer.
+// Eventually, this will be contained within Casper lib.
+class KnowledgeBase;
+typedef int (TuneFunc)(TaskGraph &tg, KnowledgeBase &db);
+void set_tune_func(TuneFunc &f);
+
 
 } // namespace cac
 

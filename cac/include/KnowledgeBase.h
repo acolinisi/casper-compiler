@@ -9,18 +9,20 @@
 namespace cac {
 	class Platform;
 	class NodeDesc;
-	class Options;
 
 	class KnowledgeBase {
 	public:
 		using ParamMap = std::map<std::string, std::string>;
+		using DB = std::map<std::string, std::map<unsigned, ParamMap>>;
 	public:
-		KnowledgeBase(Options &opts);
+		KnowledgeBase();
+		void setParams(const std::string &kernelName,
+				const NodeDesc &nodeDesc, ParamMap &params);
 		const ParamMap& getParams(const std::string &kernelName,
 				const NodeDesc &nodeDesc);
 	public:
 		// kernel name -> node type id -> param -> value
-		std::map<std::string, std::map<unsigned, ParamMap>> params;
+		DB db;
 		graph_t kb_graph;
 	};
 } // namespace cac

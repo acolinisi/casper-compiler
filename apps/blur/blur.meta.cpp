@@ -4,9 +4,16 @@
 
 using namespace cac;
 
+namespace cac {
+
+// TODO: this will move out of the app into Casper lib
+int tune(TaskGraph &tg, KnowledgeBase &db);
+
+} // namespace cac
+
 int main(int argc, char **argv) {
 	TaskGraph tg("blur"); // must match target name in CMake script
-	Options opts(argc, argv);
+	//Options opts(argc, argv);
 
 	int img_width = 1695, img_height = 1356; // casper.bmp
 	//int img_width = 16950, img_height = 13560; // casper-tiled10.bmp
@@ -29,7 +36,9 @@ int main(int argc, char **argv) {
 
 	Task& task_save = tg.createTask(CKernel("bmp_save"), {img_blurred});
 
+	set_tune_func(tune); // TODO: temporary workaround
+
 	// NOTE/TODO: node type ID list also present in CMakeLists.txt
 	Platform plat{/* node types */ {0, 1}};
-	return compile(tg, plat, opts);
+	return compile(tg, plat);
 }
