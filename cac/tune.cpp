@@ -13,7 +13,7 @@ using namespace cac;
 
 namespace cac {
 
-int tune(TaskGraph &tg, KnowledgeBase &db,
+void tune(TaskGraph &tg, KnowledgeBase &db,
 		const std::string &modelFile, const std::string &modelCPFile,
 	    const std::string &candidatesFile)
 {
@@ -87,8 +87,6 @@ int tune(TaskGraph &tg, KnowledgeBase &db,
 			db.setParams(halideTaskObj->func, nodeDesc, params);
 		}
 	}
-
-	return 0;
 }
 
 } // namespace cac

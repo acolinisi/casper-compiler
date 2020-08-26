@@ -7,8 +7,8 @@
 
 namespace cac {
 
-// Emits LLVM IR to stderr
 int compile(TaskGraph &tg);
+void compileThrow(TaskGraph &tg);
 
 } // namespace cac
 
