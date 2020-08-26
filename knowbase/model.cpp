@@ -44,7 +44,7 @@ MLP_t::MLP_t()
 {
 }
 
-MLP_t::MLP_t(char *pb_file, char *chkpt_file)
+MLP_t::MLP_t(const char *pb_file, const char *chkpt_file)
 {
     pb_path=strdup(pb_file);
     chkpt_path=strdup(chkpt_file);

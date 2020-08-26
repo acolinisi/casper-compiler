@@ -36,7 +36,7 @@ class MLP_t: public Performance_model_t
 	char *chkpt_path;
 public:
 	MLP_t();
-	MLP_t(char *pb_file, char *chkpt_file);
+	MLP_t(const char *pb_file, const char *chkpt_file);
 	struct performance_t eval(struct metadata_t input);
 	void print(std::ostream &os)
 	{
