@@ -689,6 +689,7 @@ public:
     for (int i = 0; i < numVariants; ++i) {
       unsigned variantId = variantsAttr[i].cast<IntegerAttr>().getInt();
 
+      // TODO: reuse makeVariantNameFunction between hear and build.cpp
       std::string funcVariantName = funcStr +
         "_v" + std::to_string(variantId);
       StringRef func{funcVariantName};
