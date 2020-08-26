@@ -14,31 +14,10 @@ using namespace cac;
 namespace {
 
 // TODO: this should be built from the TaskGraph object
-void buildKB(graph_t &KB, TaskGraph &tg,
+void buildKB(graph_t &KB, KnowledgeBase &db, TaskGraph &tg,
 		const char *modelFile, const char *modelCPFile) {
 	// add hardware
-	std::vector<vertex_descriptor_t> platforms;
-
-	vertex_descriptor_t hardware0 = boost::add_vertex(KB);
-	CPU_t *i7_cpu= new CPU_t(4, 50000000000);
-	i7_cpu->type = "CPU_t";
-	i7_cpu->id = 0;
-	i7_cpu->node_type = 0;
-	KB[hardware0].is_hardware = true;
-	KB[hardware0].hardware = i7_cpu;
-	KB[hardware0].id = i7_cpu->id;
-	platforms.push_back(hardware0);
-
-	vertex_descriptor_t hardware1 = boost::add_vertex(KB);
-	CPU_t *dummy_cpu= new CPU_t(8, 20000000000);
-	dummy_cpu->type = "CPU_t";
-	dummy_cpu->id = 1;
-	dummy_cpu->node_type = 1;
-	KB[hardware1].is_hardware = true;
-	KB[hardware1].hardware = dummy_cpu;
-	KB[hardware1].id = dummy_cpu->id;
-	platforms.push_back(hardware1);
-
+	const std::vector<vertex_descriptor_t> &platforms = db.getNodeTypeVertices();
 	std::map<std::string, vertex_descriptor_t> steps;
 	int id = 0;
 	for (auto &task : tg.tasks) {
@@ -65,7 +44,7 @@ void buildKB(graph_t &KB, TaskGraph &tg,
 			MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
 			m->type = "MLP_t";
 			m->id = 2;
-			m->src_id = KB[hardware0].id;
+			m->src_id = KB[platform].id;
 			m->dst_id = KB[step].id;
 			KB[edge.first].is_performance_model = true;
 			KB[edge.first].performance_model = m;
@@ -89,7 +68,7 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	const char *candidatesFile = "halide_blur_i7_candidates.small.csv";
 
 	graph_t &kbGraph = db.kbGraph;
-	buildKB(kbGraph, tg, modelFile, modelCPFile);
+	buildKB(kbGraph, db, tg, modelFile, modelCPFile);
 
 	// Enumerate platforms (and cross-check tasks) defined in KB graph
 	typedef std::pair<vertex_descriptor_t, NodeDesc> PlatPair;
@@ -100,7 +79,6 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
 		if (kbGraph[*it].is_hardware) {
 			NodeDesc nodeDesc{kbGraph[*it].hardware->node_type};
-			db.addNodeType(nodeDesc);
 			platforms.push_back(PlatPair{*it, nodeDesc});
 		}
 		// TODO: this logic will change if we do build KB per app
