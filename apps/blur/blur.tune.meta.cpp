@@ -26,6 +26,15 @@ void buildKB(graph_t &KB,
 	KB[hardware0].hardware = i7_cpu;
 	KB[hardware0].id = i7_cpu->id;
 
+	vertex_descriptor_t hardware1 = boost::add_vertex(KB);
+	CPU_t *dummy_cpu= new CPU_t(8, 20000000000);
+	dummy_cpu->type = "CPU_t";
+	dummy_cpu->id = 1;
+	dummy_cpu->node_type = 1;
+	KB[hardware1].is_hardware = true;
+	KB[hardware1].hardware = dummy_cpu;
+	KB[hardware1].id = dummy_cpu->id;
+
 	// add step
 	vertex_descriptor_t step0 = boost::add_vertex(KB);
 	Blur_t *Blur = new Blur_t();
@@ -36,15 +45,30 @@ void buildKB(graph_t &KB,
 	KB[step0].step = Blur;
 	KB[step0].id = Blur->id;
 
-	// add performance model
-	std::pair<edge_descriptror_t, bool> h0s0 = boost::add_edge(hardware0, step0, KB);
-	MLP_t *halide_i7 = new MLP_t((char *)modelFile, (char *)modelCPFile);
-	halide_i7->type = "MLP_t";
-	halide_i7->id = 2;
-	halide_i7->src_id = KB[hardware0].id;
-	halide_i7->dst_id = KB[step0].id;
-	KB[h0s0.first].is_performance_model = true;
-	KB[h0s0.first].performance_model = halide_i7;
+	// add performance models
+	{
+		const std::pair<edge_descriptror_t, bool> edge =
+			boost::add_edge(hardware0, step0, KB);
+		MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
+		m->type = "MLP_t";
+		m->id = 2;
+		m->src_id = KB[hardware0].id;
+		m->dst_id = KB[step0].id;
+		KB[edge.first].is_performance_model = true;
+		KB[edge.first].performance_model = m;
+	}
+	{
+		// TODO: re-using same model files for now
+		const std::pair<edge_descriptror_t, bool> &edge =
+			boost::add_edge(hardware1, step0, KB);
+		MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
+		m->type = "MLP_t";
+		m->id = 2;
+		m->src_id = KB[hardware0].id;
+		m->dst_id = KB[step0].id;
+		KB[edge.first].is_performance_model = true;
+		KB[edge.first].performance_model = m;
+	}
 
 	// TODO: free memory
 }
