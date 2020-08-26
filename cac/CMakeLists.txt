@@ -24,6 +24,7 @@ add_llvm_library(cac
   build.cpp
   casper.cpp
   halide.cpp
+  ini.cpp
   Executable.cpp
   KnowledgeBase.cpp
   Options.cpp
