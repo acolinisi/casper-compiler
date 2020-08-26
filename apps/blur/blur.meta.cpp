@@ -4,13 +4,6 @@
 
 using namespace cac;
 
-namespace cac {
-
-// TODO: this will move out of the app into Casper lib
-int tune(TaskGraph &tg, KnowledgeBase &db);
-
-} // namespace cac
-
 int main(int argc, char **argv) {
 	TaskGraph tg("blur"); // must match target name in CMake script
 	//Options opts(argc, argv);
@@ -38,6 +31,5 @@ int main(int argc, char **argv) {
 
 	Task& task_save = tg.createTask(CKernel("bmp_save"), {img_blurred});
 
-	set_tune_func(tune); // TODO: temporary workaround
 	return compile(tg);
 }
