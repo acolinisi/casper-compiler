@@ -17,6 +17,8 @@ namespace {
 void buildKB(graph_t &KB, TaskGraph &tg,
 		const char *modelFile, const char *modelCPFile) {
 	// add hardware
+	std::vector<vertex_descriptor_t> platforms;
+
 	vertex_descriptor_t hardware0 = boost::add_vertex(KB);
 	CPU_t *i7_cpu= new CPU_t(4, 50000000000);
 	i7_cpu->type = "CPU_t";
@@ -25,6 +27,7 @@ void buildKB(graph_t &KB, TaskGraph &tg,
 	KB[hardware0].is_hardware = true;
 	KB[hardware0].hardware = i7_cpu;
 	KB[hardware0].id = i7_cpu->id;
+	platforms.push_back(hardware0);
 
 	vertex_descriptor_t hardware1 = boost::add_vertex(KB);
 	CPU_t *dummy_cpu= new CPU_t(8, 20000000000);
@@ -34,10 +37,16 @@ void buildKB(graph_t &KB, TaskGraph &tg,
 	KB[hardware1].is_hardware = true;
 	KB[hardware1].hardware = dummy_cpu;
 	KB[hardware1].id = dummy_cpu->id;
+	platforms.push_back(hardware1);
 
 	std::map<std::string, vertex_descriptor_t> steps;
 	int id = 0;
 	for (auto &task : tg.tasks) {
+		// TODO: For now, we tune all Halide kernels for all platforms
+		if (task->type != Task::Halide) {
+			continue;
+		}
+
 		vertex_descriptor_t step = boost::add_vertex(KB);
 		Step_t *s = new Step_t();
 		s->type = "Step_t";
@@ -47,32 +56,20 @@ void buildKB(graph_t &KB, TaskGraph &tg,
 		KB[step].step = s;
 		KB[step].id = s->id;
 		steps[s->name] = step;
-	}
 
-	// add performance models
-	vertex_descriptor_t step = steps["halide_blur"];
-	{
-		const std::pair<edge_descriptror_t, bool> edge =
-			boost::add_edge(hardware0, step, KB);
-		MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
-		m->type = "MLP_t";
-		m->id = 2;
-		m->src_id = KB[hardware0].id;
-		m->dst_id = KB[step].id;
-		KB[edge.first].is_performance_model = true;
-		KB[edge.first].performance_model = m;
-	}
-	{
-		// TODO: re-using same model files for now
-		const std::pair<edge_descriptror_t, bool> &edge =
-			boost::add_edge(hardware1, step, KB);
-		MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
-		m->type = "MLP_t";
-		m->id = 2;
-		m->src_id = KB[hardware0].id;
-		m->dst_id = KB[step].id;
-		KB[edge.first].is_performance_model = true;
-		KB[edge.first].performance_model = m;
+		for (auto &platform : platforms) {
+			const std::pair<edge_descriptror_t, bool> edge =
+				boost::add_edge(platform, step, KB);
+
+			// TODO: re-using same mocked up model files for now
+			MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
+			m->type = "MLP_t";
+			m->id = 2;
+			m->src_id = KB[hardware0].id;
+			m->dst_id = KB[step].id;
+			KB[edge.first].is_performance_model = true;
+			KB[edge.first].performance_model = m;
+		}
 	}
 
 	// TODO: free memory
