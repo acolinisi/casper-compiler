@@ -14,7 +14,7 @@ using namespace cac;
 namespace {
 
 // TODO: this should be built from the TaskGraph object
-void buildKB(graph_t &KB,
+void buildKB(graph_t &KB, TaskGraph &tg,
 		const char *modelFile, const char *modelCPFile) {
 	// add hardware
 	vertex_descriptor_t hardware0 = boost::add_vertex(KB);
@@ -35,37 +35,42 @@ void buildKB(graph_t &KB,
 	KB[hardware1].hardware = dummy_cpu;
 	KB[hardware1].id = dummy_cpu->id;
 
-	// add step
-	vertex_descriptor_t step0 = boost::add_vertex(KB);
-	Blur_t *Blur = new Blur_t();
-	Blur->type = "Blur_t";
-	Blur->id = 1;
-	Blur->name = "halide_blur";
-	KB[step0].is_step = true;
-	KB[step0].step = Blur;
-	KB[step0].id = Blur->id;
+	std::map<std::string, vertex_descriptor_t> steps;
+	int id = 0;
+	for (auto &task : tg.tasks) {
+		vertex_descriptor_t step = boost::add_vertex(KB);
+		Step_t *s = new Step_t();
+		s->type = "Step_t";
+		s->id = id++;
+		s->name = task->func;
+		KB[step].is_step = true;
+		KB[step].step = s;
+		KB[step].id = s->id;
+		steps[s->name] = step;
+	}
 
 	// add performance models
+	vertex_descriptor_t step = steps["halide_blur"];
 	{
 		const std::pair<edge_descriptror_t, bool> edge =
-			boost::add_edge(hardware0, step0, KB);
+			boost::add_edge(hardware0, step, KB);
 		MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
 		m->type = "MLP_t";
 		m->id = 2;
 		m->src_id = KB[hardware0].id;
-		m->dst_id = KB[step0].id;
+		m->dst_id = KB[step].id;
 		KB[edge.first].is_performance_model = true;
 		KB[edge.first].performance_model = m;
 	}
 	{
 		// TODO: re-using same model files for now
 		const std::pair<edge_descriptror_t, bool> &edge =
-			boost::add_edge(hardware1, step0, KB);
+			boost::add_edge(hardware1, step, KB);
 		MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
 		m->type = "MLP_t";
 		m->id = 2;
 		m->src_id = KB[hardware0].id;
-		m->dst_id = KB[step0].id;
+		m->dst_id = KB[step].id;
 		KB[edge.first].is_performance_model = true;
 		KB[edge.first].performance_model = m;
 	}
@@ -87,7 +92,7 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	const char *candidatesFile = "halide_blur_i7_candidates.small.csv";
 
 	graph_t &kbGraph = db.kbGraph;
-	buildKB(kbGraph, modelFile, modelCPFile);
+	buildKB(kbGraph, tg, modelFile, modelCPFile);
 
 	// Enumerate platforms (and cross-check tasks) defined in KB graph
 	typedef std::pair<vertex_descriptor_t, NodeDesc> PlatPair;
