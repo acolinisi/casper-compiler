@@ -14,13 +14,14 @@ using namespace cac;
 namespace {
 
 // TODO: this should be built from the TaskGraph object
-void build_kb_graph(graph_t &KB,
-		const char *model_fname, const char *model_cp_fname) {
+void buildKB(graph_t &KB,
+		const char *modelFile, const char *modelCPFile) {
 	// add hardware
 	vertex_descriptor_t hardware0 = boost::add_vertex(KB);
 	CPU_t *i7_cpu= new CPU_t(4, 50000000000);
 	i7_cpu->type = "CPU_t";
 	i7_cpu->id = 0;
+	i7_cpu->node_type = 0;
 	KB[hardware0].is_hardware = true;
 	KB[hardware0].hardware = i7_cpu;
 	KB[hardware0].id = i7_cpu->id;
@@ -30,13 +31,14 @@ void build_kb_graph(graph_t &KB,
 	Blur_t *Blur = new Blur_t();
 	Blur->type = "Blur_t";
 	Blur->id = 1;
+	Blur->name = "halide_blur";
 	KB[step0].is_step = true;
 	KB[step0].step = Blur;
 	KB[step0].id = Blur->id;
 
 	// add performance model
 	std::pair<edge_descriptror_t, bool> h0s0 = boost::add_edge(hardware0, step0, KB);
-	MLP_t *halide_i7 = new MLP_t((char *)model_fname, (char *)model_cp_fname);
+	MLP_t *halide_i7 = new MLP_t((char *)modelFile, (char *)modelCPFile);
 	halide_i7->type = "MLP_t";
 	halide_i7->id = 2;
 	halide_i7->src_id = KB[hardware0].id;
@@ -56,51 +58,59 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	// TODO: cache DB object, and make all steps here incremental
 
 	// Build artifacts
-	char *model_fname = "tf_models/model.pb";
-	char *model_cp_fname = "tf_models/my-model.ckpt";
-	const char *candidates_fname = "halide_blur_i7_candidates.small.csv";
+	const char *modelFile = "tf_models/model.pb";
+	const char *modelCPFile = "tf_models/my-model.ckpt";
+	const char *candidatesFile = "halide_blur_i7_candidates.small.csv";
 
-	const char *kb_fname = "blur"; // temporary file
+	graph_t &kbGraph = db.kbGraph;
+	buildKB(kbGraph, modelFile, modelCPFile);
 
-	graph_t kb_graph;
-	build_kb_graph(kb_graph, model_fname, model_cp_fname);
+	// Enumerate platforms (and cross-check tasks) defined in KB graph
+	typedef std::pair<vertex_descriptor_t, NodeDesc> PlatPair;
+	typedef std::pair<vertex_descriptor_t, Task&> TaskPair;
+	std::vector<PlatPair> platforms;
+	std::vector<TaskPair> tasks;
+	auto v_it_range = boost::vertices(kbGraph);
+	for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
+		if (kbGraph[*it].is_hardware) {
+			NodeDesc nodeDesc{kbGraph[*it].hardware->node_type};
+			db.addNodeType(nodeDesc);
+			platforms.push_back(PlatPair{*it, nodeDesc});
+		}
+		// TODO: this logic will change if we do build KB per app
+		if (kbGraph[*it].is_step) { // TODO: is_kernel?
+			for (auto &task: tg.tasks) {
+				assert(kbGraph[*it].step);
+				if (task->func == kbGraph[*it].step->name) {
+					tasks.push_back(TaskPair{*it, *task});
+				}
+			}
+		}
+	}
 
-	// query
-	// float dimension = 32768;
-	// std::vector<float> schedule = {1024, 4, 2, 2};
-	// std::cout << halide_i7.eval(dimension, schedule).exec_time << std::endl;
+	std::cout << "Tuning variant parameters for: " << tasks.size() << " tasks, "
+		<< platforms.size() << " platforms..." << std::endl;
 
-	// Finds the best variant
-	std::vector<float> variant =
-		select_variant(1024, kb_graph, candidates_fname);
+	for (auto &task: tasks) {
+		vertex_descriptor_t &taskV = task.first;
+		Task &taskObj = task.second;
+		for (auto &plat: platforms) {
+			vertex_descriptor_t &platV = plat.first;
+			NodeDesc &nodeDesc = plat.second;
 
-	const char *kern_name = "halide_blur";
-	const NodeDesc nodeDesc{1}; // TODO: get from HW info in kb_graph
-	// TODO: generalize to any kernel: introspect the generator?
-	KnowledgeBase::ParamMap params{
-		{ "p1", std::to_string((int)variant[0]) },
-		{ "p2", std::to_string((int)variant[1]) },
-		{ "p3", std::to_string((int)variant[2]) },
-		{ "p4", std::to_string((int)variant[3]) },
-   	};
-	db.setParams(kern_name, nodeDesc, params);
+			std::vector<float> variant =
+				select_variant(kbGraph, taskV, platV, candidatesFile, 1024);
 
-#if 0
-	std::ofstream variants_fout(opts.variants_fname);
-	variants_fout << "halide_blur"; // kernel ID (from metaprogram)
-	for (float param : variant)
-	    variants_fout << param;
-	variants_fout << std::endl;
-	variants_fout.close();
-#endif
-
-	// query
-	// struct metadata_t metadata;
-	// metadata.dimension = 32768;
-	// metadata.schedule = {1024, 4, 2, 2};
-	// metadata.schedule = {16, 64, 32, 16};
-
-	// kb_graph[boost::edge(vertices[0], vertices[1], kb_graph).first].performance_model->eval(metadata).exec_time
+			// TODO: generalize to any kernel: introspect the generator?
+			KnowledgeBase::ParamMap params{
+				{ "p1", std::to_string((int)variant[0]) },
+				{ "p2", std::to_string((int)variant[1]) },
+				{ "p3", std::to_string((int)variant[2]) },
+				{ "p4", std::to_string((int)variant[3]) },
+			};
+			db.setParams(taskObj.func, nodeDesc, params);
+		}
+	}
 
 	return 0;
 }

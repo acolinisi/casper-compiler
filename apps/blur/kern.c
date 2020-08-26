@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 void img_inv(double *M_buf, double *M, int offset,
 		int n, int m, int s_n, int s_m) {

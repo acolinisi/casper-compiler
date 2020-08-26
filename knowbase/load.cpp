@@ -99,15 +99,10 @@ std::vector<vertex_descriptor_t> load_graph(graph_t &g, std::string filename)
 
 // input: data dimension
 // output: predicted best schedule
-std::vector<float> select_variant(float input_dimension, graph_t KB,
-        const std::string &candidates_filename) {
-
-    std::vector<vertex_descriptor_t> vertices;
-    auto v_it_range = boost::vertices(KB);
-    for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
-            vertices.push_back(*it);
-    }
-    
+std::vector<float> select_variant(graph_t &KB,
+        vertex_descriptor_t kernel, vertex_descriptor_t plat,
+        const std::string &candidates_filename, float input_dimension)
+{
     std::ifstream in(candidates_filename.c_str());
     if (!in.is_open())
         throw std::runtime_error("failed to open candidates file");
@@ -140,7 +135,9 @@ std::vector<float> select_variant(float input_dimension, graph_t KB,
         metadata.dimension = input_dimension;
         metadata.schedule = candidate;
         
-        float curr_runtime = KB[boost::edge(vertices[0], vertices[1], KB).first].performance_model->eval(metadata).exec_time;
+        const auto &edge = boost::edge(plat, kernel, KB).first;
+        float curr_runtime =
+            KB[edge].performance_model->eval(metadata).exec_time;
         
         if (curr_runtime < min_runtime){
             selected_variant = candidate;

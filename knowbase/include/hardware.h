@@ -6,6 +6,7 @@ class Hardware_t
 public:
 	std::string type;
 	int id;
+	unsigned node_type;
 	Hardware_t();
 	virtual double get_FLOPS();
 	virtual void print(std::ostream &os) {};

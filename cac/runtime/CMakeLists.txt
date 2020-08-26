@@ -1,5 +1,5 @@
 set(lib casper_runtime)
-add_library(${lib} platform.cpp python.cpp)
+add_library(${lib} SHARED platform.cpp python.cpp)
 
 # TODO: not all apps need python, make optional
 find_package(Python COMPONENTS Development REQUIRED)

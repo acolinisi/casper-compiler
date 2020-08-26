@@ -6,6 +6,7 @@ class Step_t
 public:
 	std::string type;
 	int id;
+	std::string name;
 	Step_t();
 	virtual void print(std::ostream &os) {};
 };

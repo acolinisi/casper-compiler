@@ -37,8 +37,5 @@ int main(int argc, char **argv) {
 	Task& task_save = tg.createTask(CKernel("bmp_save"), {img_blurred});
 
 	set_tune_func(tune); // TODO: temporary workaround
-
-	// NOTE/TODO: node type ID list also present in CMakeLists.txt
-	Platform plat{/* node types */ {0, 1}};
-	return compile(tg, plat);
+	return compile(tg);
 }

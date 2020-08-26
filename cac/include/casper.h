@@ -10,7 +10,6 @@ namespace cac {
 
 // Emits LLVM IR to stderr
 int compile(TaskGraph &tg);
-int compile(TaskGraph &tg, Platform &plat);
 
 // TODO: currently this func is defined by the app, but Casper lib needs to
 // call it, so app needs to pass it to Casper lib as a callback pointer.
