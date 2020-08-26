@@ -18,6 +18,7 @@ add_public_tablegen_target(ToyCh5CombineIncGen)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/)
+add_compile_options(-Wall)
 
 add_llvm_library(cac
   build.cpp
