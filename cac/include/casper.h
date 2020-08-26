@@ -7,8 +7,11 @@
 
 namespace cac {
 
-int compile(TaskGraph &tg);
-void compileThrow(TaskGraph &tg);
+// throws on failure
+void compile(TaskGraph &tg);
+
+// compile() wrapped in a try/catch that returns non-zero on failure
+int tryCompile(TaskGraph &tg);
 
 } // namespace cac
 
