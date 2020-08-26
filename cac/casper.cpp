@@ -57,7 +57,7 @@ int compile(TaskGraph &tg) {
 		}
 
 		KnowledgeBase db;
-		db.loadPlatforms("platform.ini"); // TODO: expose on CLI
+		db.loadPlatform("platform.ini"); // TODO: expose on CLI
 		(*tune)(tg, db);
 
 		std::string argsFileName(tg.name + ".args");

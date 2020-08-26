@@ -11,51 +11,6 @@
 
 using namespace cac;
 
-namespace {
-
-// TODO: this should be built from the TaskGraph object
-void buildKB(graph_t &KB, KnowledgeBase &db, TaskGraph &tg,
-		const char *modelFile, const char *modelCPFile) {
-	// add hardware
-	const std::vector<vertex_descriptor_t> &platforms = db.getNodeTypeVertices();
-	std::map<std::string, vertex_descriptor_t> steps;
-	int id = 0;
-	for (auto &task : tg.tasks) {
-		// TODO: For now, we tune all Halide kernels for all platforms
-		if (task->type != Task::Halide) {
-			continue;
-		}
-
-		vertex_descriptor_t step = boost::add_vertex(KB);
-		Step_t *s = new Step_t();
-		s->type = "Step_t";
-		s->id = id++;
-		s->name = task->func;
-		KB[step].is_step = true;
-		KB[step].step = s;
-		KB[step].id = s->id;
-		steps[s->name] = step;
-
-		for (auto &platform : platforms) {
-			const std::pair<edge_descriptror_t, bool> edge =
-				boost::add_edge(platform, step, KB);
-
-			// TODO: re-using same mocked up model files for now
-			MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
-			m->type = "MLP_t";
-			m->id = 2;
-			m->src_id = KB[platform].id;
-			m->dst_id = KB[step].id;
-			KB[edge.first].is_performance_model = true;
-			KB[edge.first].performance_model = m;
-		}
-	}
-
-	// TODO: free memory
-}
-
-} // namespace anon
-
 namespace cac {
 
 int tune(TaskGraph &tg, KnowledgeBase &db)
@@ -68,27 +23,47 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	const char *candidatesFile = "halide_blur_i7_candidates.small.csv";
 
 	graph_t &kbGraph = db.kbGraph;
-	buildKB(kbGraph, db, tg, modelFile, modelCPFile);
 
-	// Enumerate platforms (and cross-check tasks) defined in KB graph
-	typedef std::pair<vertex_descriptor_t, NodeDesc> PlatPair;
+	const std::vector<vertex_descriptor_t> &platforms =
+		db.getNodeTypeVertices();
+
+	// Create vertices for tasks (aka. steps) in the knowledge base
 	typedef std::pair<vertex_descriptor_t, Task&> TaskPair;
-	std::vector<PlatPair> platforms;
 	std::vector<TaskPair> tasks;
-	auto v_it_range = boost::vertices(kbGraph);
-	for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
-		if (kbGraph[*it].is_hardware) {
-			NodeDesc nodeDesc{kbGraph[*it].hardware->node_type};
-			platforms.push_back(PlatPair{*it, nodeDesc});
+	int id = 0;
+	for (const auto &task : tg.tasks) {
+		// TODO: For now, we tune all Halide kernels for all platforms
+		if (task->type != Task::Halide) {
+			continue;
 		}
-		// TODO: this logic will change if we do build KB per app
-		if (kbGraph[*it].is_step) { // TODO: is_kernel?
-			for (auto &task: tg.tasks) {
-				assert(kbGraph[*it].step);
-				if (task->func == kbGraph[*it].step->name) {
-					tasks.push_back(TaskPair{*it, *task});
-				}
-			}
+
+		vertex_descriptor_t step = boost::add_vertex(kbGraph);
+		Step_t *s = new Step_t();
+		s->type = "Step_t";
+		s->id = id++;
+		s->name = task->func;
+		kbGraph[step].is_step = true;
+		kbGraph[step].step = s;
+		kbGraph[step].id = s->id;
+
+		tasks.push_back(TaskPair{step, *task});
+	}
+
+	// Create edges for perf models in the knowledge base
+	for (auto &taskPair : tasks) {
+		vertex_descriptor_t step = taskPair.first;
+		for (auto &platform : platforms) {
+			const std::pair<edge_descriptror_t, bool> edge =
+				boost::add_edge(platform, step, kbGraph);
+
+			// TODO: re-using same mocked up model files for now
+			MLP_t *m = new MLP_t((char *)modelFile, (char *)modelCPFile);
+			m->type = "MLP_t";
+			m->id = 2;
+			m->src_id = kbGraph[platform].id;
+			m->dst_id = kbGraph[step].id;
+			kbGraph[edge.first].is_performance_model = true;
+			kbGraph[edge.first].performance_model = m;
 		}
 	}
 
@@ -102,9 +77,8 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 			continue; // TODO: support variants for other task types too
 		}
 		HalideTask *halideTaskObj = static_cast<HalideTask*>(&taskObj);
-		for (auto &plat: platforms) {
-			vertex_descriptor_t &platV = plat.first;
-			NodeDesc &nodeDesc = plat.second;
+		for (auto &platV: platforms) {
+			NodeDesc nodeDesc{kbGraph[platV].hardware->node_type};
 
 			std::map<std::string, float> variant =
 				select_variant(kbGraph, taskV, platV, candidatesFile, 1024);

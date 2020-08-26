@@ -15,7 +15,7 @@ namespace cac {
 KnowledgeBase::KnowledgeBase() {
 }
 
-void KnowledgeBase::loadPlatforms(const std::string &iniFile) {
+void KnowledgeBase::loadPlatform(const std::string &iniFile) {
 	const auto &dict = parseINI(iniFile);
 	unsigned nodeTypeId = 0;
 	for (const auto &sectPair : dict) {
@@ -34,7 +34,6 @@ void KnowledgeBase::loadPlatforms(const std::string &iniFile) {
 
 		vertex_descriptor_t v = boost::add_vertex(kbGraph);
 		Hardware_t *hw;
-		NodeDesc nodeDesc{nodeTypeId};
 		int id = nodeTypeId++;
 		if (type == "cpu") {
 			unsigned cores, freq_hz;
@@ -65,26 +64,28 @@ void KnowledgeBase::loadPlatforms(const std::string &iniFile) {
 		kbGraph[v].is_hardware = true;
 		kbGraph[v].hardware = hw;
 		kbGraph[v].id = id;
-
-		nodeTypeVertices.push_back(v);
-		nodeTypes.push_back(nodeDesc);
 	}
-}
-
-void KnowledgeBase::addNodeTypes(const std::vector<NodeDesc> &nodeTypes) {
-	for (const auto &nodeType : nodeTypes) {
-		this->nodeTypes.push_back(nodeType);
-	}
-}
-void KnowledgeBase::addNodeType(NodeDesc &nodeType) {
-	this->nodeTypes.push_back(nodeType);
 }
 
 std::vector<NodeDesc> KnowledgeBase::getNodeTypes() {
+	std::vector<NodeDesc> nodeTypes;
+	auto v_it_range = boost::vertices(kbGraph);
+	for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
+		if (kbGraph[*it].is_hardware) {
+			NodeDesc nodeDesc{kbGraph[*it].hardware->node_type};
+			nodeTypes.push_back(nodeDesc);
+		}
+	}
 	return nodeTypes;
 }
 std::vector<vertex_descriptor_t> KnowledgeBase::getNodeTypeVertices() {
-	return nodeTypeVertices;
+	std::vector<vertex_descriptor_t> vertices;
+	auto v_it_range = boost::vertices(kbGraph);
+	for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
+		if (kbGraph[*it].is_hardware)
+			vertices.push_back(*it);
+	}
+	return vertices;
 }
 
 void KnowledgeBase::setParams(const std::string &kernelName,

@@ -16,9 +16,7 @@ namespace cac {
 		using DB = std::map<std::string, std::map<unsigned, ParamMap>>;
 	public:
 		KnowledgeBase();
-		void loadPlatforms(const std::string &iniFile);
-		void addNodeType(NodeDesc &nodeType);
-		void addNodeTypes(const std::vector<NodeDesc> &nodeTypes);
+		void loadPlatform(const std::string &iniFile);
 		std::vector<NodeDesc> getNodeTypes();
 		std::vector<vertex_descriptor_t> getNodeTypeVertices();
 		void setParams(const std::string &kernelName,
@@ -29,8 +27,6 @@ namespace cac {
 		// kernel name -> node type id -> param -> value
 		DB db;
 		graph_t kbGraph;
-		std::vector<NodeDesc> nodeTypes;
-		std::vector<vertex_descriptor_t> nodeTypeVertices;
 	};
 } // namespace cac
 
