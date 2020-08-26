@@ -8,13 +8,15 @@ set(CASPER_COMPILER_LIB cac)
 function(casper_add_exec target meta_prog)
 	cmake_parse_arguments(FARG
 		""
-		"BUILD_DIR"
+		"BUILD_DIR;PLATFORM"
 		"SOURCES;C_KERNEL_SOURCES"
 		${ARGN})
 
 	if (NOT ${FARG_BUILD_DIR})
 		set(FARG_BUILD_DIR "target")
 	endif()
+
+	configure_file(${FARG_PLATFORM} ${FARG_PLATFORM} COPYONLY)
 
 	find_package(Threads)
 
@@ -29,7 +31,7 @@ function(casper_add_exec target meta_prog)
 	## Run the meta-program
 	add_custom_command(OUTPUT ${target}.ll ${target}.args
 		COMMAND ${meta_prog}
-		DEPENDS ${meta_prog})
+		DEPENDS ${meta_prog} ${FARG_PLATFORM})
 
 	# Generate a separate (nested) CMake project that will link the
 	# application binary. We cannot link the app binary in this CMake
