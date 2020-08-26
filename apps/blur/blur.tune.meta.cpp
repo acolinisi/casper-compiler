@@ -118,21 +118,22 @@ int tune(TaskGraph &tg, KnowledgeBase &db)
 	for (auto &task: tasks) {
 		vertex_descriptor_t &taskV = task.first;
 		Task &taskObj = task.second;
+		if (taskObj.type != Task::Halide) {
+			continue; // TODO: support variants for other task types too
+		}
+		HalideTask *halideTaskObj = static_cast<HalideTask*>(&taskObj);
 		for (auto &plat: platforms) {
 			vertex_descriptor_t &platV = plat.first;
 			NodeDesc &nodeDesc = plat.second;
 
-			std::vector<float> variant =
+			std::map<std::string, float> variant =
 				select_variant(kbGraph, taskV, platV, candidatesFile, 1024);
+			KnowledgeBase::ParamMap params;
+			for (const auto &param : halideTaskObj->params) {
+				params[param] = std::to_string((int)variant[param]);
+			}
 
-			// TODO: generalize to any kernel: introspect the generator?
-			KnowledgeBase::ParamMap params{
-				{ "p1", std::to_string((int)variant[0]) },
-				{ "p2", std::to_string((int)variant[1]) },
-				{ "p3", std::to_string((int)variant[2]) },
-				{ "p4", std::to_string((int)variant[3]) },
-			};
-			db.setParams(taskObj.func, nodeDesc, params);
+			db.setParams(halideTaskObj->func, nodeDesc, params);
 		}
 	}
 

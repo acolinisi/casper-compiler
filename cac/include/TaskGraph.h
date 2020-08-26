@@ -76,8 +76,11 @@ namespace cac {
 
 	class HalideTask : public Task {
 	public:
-		HalideTask(const std::string &func, std::vector<Value *> args)
-			: Task(Task::Halide, func, args) {}
+		HalideTask(const std::string &func, std::vector<Value *> args,
+				std::vector<std::string> params)
+			: Task(Task::Halide, func, args), params(params) {}
+	public:
+		std::vector<std::string> params;
 	};
 	class CTask : public Task {
 	public:
@@ -101,7 +104,11 @@ namespace cac {
 	};
 	class HalideKernel : public Kernel {
 	public:
-		HalideKernel(const std::string &func) : Kernel(func) { }
+		HalideKernel(const std::string &func,
+			std::vector<std::string> params)
+			: Kernel(func), params(params) { }
+	public:
+		std::vector<std::string> params;
 	};
 	class CKernel : public Kernel {
 	public:

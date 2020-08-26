@@ -31,7 +31,9 @@ int main(int argc, char **argv) {
 			img_height - BLUR_WIDTH - 1,
 			img_width - BLUR_WIDTH - 1);
 
-	Task& task_blur = tg.createTask(HalideKernel("halide_blur"),
+	// TODO: introspect parameters from generator
+	Task& task_blur = tg.createTask(HalideKernel("halide_blur",
+				{"p1", "p2", "p3", "p4"}),
 			{img, img_blurred}, {&task_inv});
 
 	Task& task_save = tg.createTask(CKernel("bmp_save"), {img_blurred});

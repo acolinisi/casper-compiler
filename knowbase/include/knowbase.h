@@ -21,6 +21,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 typedef struct vertex_properties
 {
@@ -49,7 +50,7 @@ typedef boost::graph_traits<graph_t>::edge_iterator edge_iter;
 void save_graph(graph_t &g, std::string filename);
 std::vector<vertex_descriptor_t> load_graph(graph_t &g,
 				std::string filename);
-std::vector<float> select_variant(graph_t &KB,
+std::map<std::string, float> select_variant(graph_t &KB,
 		vertex_descriptor_t kernel, vertex_descriptor_t plat,
 		const std::string &candidates_filename, float input_dimension);
 

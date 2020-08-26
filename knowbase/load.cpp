@@ -5,6 +5,7 @@
 #include <boost/graph/graphml.hpp>
 #include <boost/tokenizer.hpp>
 #include <vector>
+#include <map>
 #include <iostream>
 #include <iterator>
 #include <algorithm>
@@ -99,7 +100,7 @@ std::vector<vertex_descriptor_t> load_graph(graph_t &g, std::string filename)
 
 // input: data dimension
 // output: predicted best schedule
-std::vector<float> select_variant(graph_t &KB,
+std::map<std::string, float> select_variant(graph_t &KB,
         vertex_descriptor_t kernel, vertex_descriptor_t plat,
         const std::string &candidates_filename, float input_dimension)
 {
@@ -121,7 +122,7 @@ std::vector<float> select_variant(graph_t &KB,
                 
         std::vector<float> candidate;
 
-        // hard-coded based on how data is arranged in .csv file
+        // TODO: hard-coded based on how data is arranged in .csv file
         for(int i = 0; i != vec.size(); ++i) {
             candidate.push_back(std::stof(vec[i]));
         }  
@@ -145,7 +146,13 @@ std::vector<float> select_variant(graph_t &KB,
         }
     }
 
-    return selected_variant;
+    std::map<std::string, float> selected_params;
+    for (int i = 0; i < vec.size(); ++i) {
+        // TODO: param names will differ per kernel; change to map everywhere
+        std::string paramName{"p" + std::to_string(i + 1)};
+        selected_params[paramName] = selected_variant[i];
+    }
+    return selected_params;
 }
 
 #if 0
