@@ -21,10 +21,6 @@ void KnowledgeBase::loadPlatform(const std::string &iniFile) {
 	for (const auto &sectPair : dict) {
 		const auto &sect = sectPair.second;
 
-		for (const auto &kvPair : sect) {
-			std::cerr << "'" << kvPair.first << "'" << std::endl;
-		}
-
 		std::string type;
 		{
 		const auto &it = sect.find("type");
@@ -35,6 +31,7 @@ void KnowledgeBase::loadPlatform(const std::string &iniFile) {
 		vertex_descriptor_t v = boost::add_vertex(kbGraph);
 		Hardware_t *hw;
 		int id = nodeTypeId++;
+
 		if (type == "cpu") {
 			unsigned cores, freq_hz;
 			{

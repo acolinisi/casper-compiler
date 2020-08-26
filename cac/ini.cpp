@@ -35,7 +35,6 @@ INIDict parseINI(const std::string &iniFile) {
 		trim(line);
 		if (line.size() == 0 || *line.begin() == '#') // skip comments
 			continue;
-		std::cerr << line << std::endl;
 		if (line.size() > 2 &&
 				*line.begin() == '[' && *(--line.end()) == ']') {
 			std::string sect{++line.begin(), --line.end()};
