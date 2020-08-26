@@ -22,7 +22,8 @@ public:
     static const int BLUR_WIDTH = 16;
 
     // TODO: it's bad we have to know the width (see comments below)
-    static const int IMG_WIDTH = 1695; // casper.bmp
+    //static const int IMG_WIDTH = 1695; // casper.bmp
+    static const int IMG_WIDTH = 256; // casper-256x100.bmp
     //static const int IMG_WIDTH = 16950; // casper-tiled10.bmp
     // static const int IMG_WIDTH = 27120; // casper-tiled20.bmp
 
@@ -93,7 +94,7 @@ public:
 
         input.dim(0).set_stride(IMG_WIDTH);
         input.dim(1).set_stride(1);
-        blur_y.dim(0).set_stride(IMG_WIDTH - BLUR_WIDTH - 1);
+        blur_y.dim(0).set_stride(IMG_WIDTH - BLUR_WIDTH);
         blur_y.dim(1).set_stride(1);
     }
 };
