@@ -138,7 +138,7 @@ void introspectHalideParams(cac::TaskGraph &tg) {
       cac::HalideTask *halideTaskObj =
 	static_cast<cac::HalideTask *>(task.get());
       const std::string &generator = task->func;
-      halideTaskObj->params = cac::introspectHalideParams(generator);
+      halideTaskObj->impl->params = cac::introspectHalideParams(generator);
     }
   }
 }

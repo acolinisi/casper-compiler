@@ -1,4 +1,5 @@
 #include "TaskGraph.h"
+#include "TaskGraphImpl.h"
 #include "KnowledgeBase.h"
 #include "Platform.h"
 
@@ -78,7 +79,7 @@ void tune(TaskGraph &tg, KnowledgeBase &db,
 			std::map<std::string, float> variant =
 				select_variant(kbGraph, taskV, platV, candidatesFile, 1024);
 			KnowledgeBase::ParamMap params;
-			for (const auto &param : halideTaskObj->params) {
+			for (const auto &param : halideTaskObj->impl->params) {
 				params[param] = std::to_string((int)variant[param]);
 			}
 

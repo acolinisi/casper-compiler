@@ -17,6 +17,7 @@ namespace cac {
 	class ScalarImpl;
 	class DatImpl;
 	class PyObjImpl;
+	class HalideTaskImpl;
 
 	class Value {
 	public:
@@ -76,10 +77,10 @@ namespace cac {
 
 	class HalideTask : public Task {
 	public:
-		HalideTask(const std::string &func, std::vector<Value *> args)
-			: Task(Task::Halide, func, args) {}
+		HalideTask(const std::string &func,
+			std::vector<Value *> args);
 	public:
-		std::vector<std::string> params;
+		std::unique_ptr<HalideTaskImpl> impl;
 	};
 	class CTask : public Task {
 	public:

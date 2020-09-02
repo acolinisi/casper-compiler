@@ -3,6 +3,9 @@
 
 namespace cac {
 
+HalideTask::HalideTask(const std::string &func, std::vector<Value *> args)
+	: Task(Task::Halide, func, args), impl(new HalideTaskImpl()) {}
+
 Value::Value(ValueImpl *impl) : impl(impl) {}
 Value::~Value() {
 	delete impl;

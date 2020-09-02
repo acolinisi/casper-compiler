@@ -64,6 +64,11 @@ public:
   PyObjImpl();
 };
 
+class HalideTaskImpl {
+public:
+	std::vector<std::string> params;
+};
+
 } // nameaspace cac
 
 #endif // CAC_TASK_GRAPH_IMPL_H
