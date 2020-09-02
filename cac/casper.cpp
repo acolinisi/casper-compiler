@@ -3,6 +3,7 @@
 #include "KnowledgeBase.h"
 #include "Platform.h"
 #include "Options.h"
+#include "Build.h"
 
 #include "tune.h"
 
@@ -70,7 +71,7 @@ void compile(TaskGraph &tg, const std::string &platformFile,
 		const std::string &candidatesFile) {
 	KnowledgeBase db;
 	db.loadPlatform(platformFile);
-	tune(tg, db, modelFile, modelCPFile, candidatesFile);
+	cac::tune(tg, db, modelFile, modelCPFile, candidatesFile);
 	composeArgsFile(tg, db);
 	emitLLVM(tg, db);
 }

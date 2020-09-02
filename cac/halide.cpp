@@ -69,7 +69,10 @@ const CompilerLoggerFactory no_compiler_logger_factory =
     return nullptr;
   };
 
-};
+} // namespace anon
+
+namespace cac {
+
 
 void compileHalideKernel(const std::string &generator,
     const std::string &artifact,
@@ -110,3 +113,4 @@ void compileHalideRuntime() {
   compile_standalone_runtime(output_files, target);
 }
 
+} // namespace cac

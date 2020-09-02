@@ -9,8 +9,6 @@
 
 #include <iostream>
 
-using namespace cac;
-
 namespace cac {
 
 void tune(TaskGraph &tg, KnowledgeBase &db,

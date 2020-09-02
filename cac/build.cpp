@@ -45,7 +45,7 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
   NamedAttribute variantsNAttr(
       Identifier::get(StringRef("variants"), &context), variantsAttr);
 
-  std::vector<Value> args;
+  std::vector<mlir::Value> args;
   for (cac::Value *val : task.args) {
     args.push_back(val->getImpl()->ref);
   }
@@ -127,6 +127,8 @@ std::string makeHalideArtifactName(const std::string &generator,
 
 } // anon namespace
 
+namespace cac {
+
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
     cac::KnowledgeBase &kb,
     MLIRContext &context, OwningModuleRef &module)
@@ -149,10 +151,10 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
 	std::cerr << kv.first << " = " << kv.second << std::endl;
       }
 
-      compileHalideKernel(generator, artifact, params);
+      cac::compileHalideKernel(generator, artifact, params);
     }
   }
-  compileHalideRuntime();
+  cac::compileHalideRuntime();
 
   module = OwningModuleRef(ModuleOp::create(
         UnknownLoc::get(&context)));
@@ -201,7 +203,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
       auto sStdTy = scalarImpl->getType(builder);
       // TODO: assumes IndexType is 64-bit
       auto idxTy = LLVM::LLVMType::getInt64Ty(llvmDialect);
-      Value one = builder.create<LLVM::ConstantOp>(loc, idxTy,
+      mlir::Value one = builder.create<LLVM::ConstantOp>(loc, idxTy,
 	  builder.getIntegerAttr(builder.getIndexType(), 1));
       auto sPtr = builder.create<LLVM::AllocaOp>(loc, sTy.getPointerTo(),
 	  one, /*align=*/ 0);
@@ -233,7 +235,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
 	// Create these constants up-front to avoid large amounts of redundant
 	// operations.
 	auto valueShape = memrefTy.getShape();
-	SmallVector<Value, 8> constantIndices;
+	SmallVector<mlir::Value, 8> constantIndices;
 
 	if (!valueShape.empty()) {
 	  for (auto i : llvm::seq<int64_t>(
@@ -247,7 +249,7 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
 	// will need to generate a store for each of the elements. The following
 	// functor recursively walks the dimensions of the constant shape,
 	// generating a store when the recursion hits the base case.
-	SmallVector<Value, 2> indices;
+	SmallVector<mlir::Value, 2> indices;
 	//auto valueIt = constantValue.getValues<FloatAttr>().begin();
 	auto valueIt = datImpl->vals.begin();
 	std::function<void(uint64_t)> storeElements = [&](uint64_t dimension) {
@@ -308,6 +310,8 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
   // Return from main
   auto zeroVal = builder.create<mlir::ConstantOp>(loc,
 		  builder.getI32IntegerAttr(0));
-  builder.create<ReturnOp>(loc, ArrayRef<Value>{zeroVal});
+  builder.create<ReturnOp>(loc, ArrayRef<mlir::Value>{zeroVal});
   return 0;
 }
+
+} // namespace cac
