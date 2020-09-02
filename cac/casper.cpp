@@ -71,6 +71,7 @@ void compile(TaskGraph &tg, const std::string &platformFile,
 		const std::string &candidatesFile) {
 	KnowledgeBase db;
 	db.loadPlatform(platformFile);
+	cac::introspectHalideParams(tg);
 	cac::tune(tg, db, modelFile, modelCPFile, candidatesFile);
 	composeArgsFile(tg, db);
 	emitLLVM(tg, db);

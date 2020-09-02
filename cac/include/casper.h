@@ -4,6 +4,7 @@
 // Include complete types, so that users can use them via this one header
 #include "TaskGraph.h"
 #include "Options.h"
+#include "CasperHalide.h"
 
 namespace cac {
 

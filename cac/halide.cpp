@@ -1,3 +1,5 @@
+#include "CasperHalide.h"
+
 #include <Halide.h>
 #include <Halide/Generator.h>
 
@@ -73,6 +75,21 @@ const CompilerLoggerFactory no_compiler_logger_factory =
 
 namespace cac {
 
+// TODO: perhaps save the instantiated generator(/stub) object to
+// not have to recreated it during the compile step
+std::vector<std::string> introspectHalideParams(const std::string &generator) {
+      auto gen = Internal::GeneratorRegistry::create(generator,
+	  GeneratorContext(target));
+      auto &paramInfo = gen->param_info();
+      std::vector<std::string> tunables;
+      for (auto *p : paramInfo.generator_params()) {
+        // TODO: need a myType() method in base class
+        if (dynamic_cast<::cac::TunableGeneratorParam*>(p)) {
+          tunables.push_back(p->name);
+        }
+      }
+      return tunables;
+}
 
 void compileHalideKernel(const std::string &generator,
     const std::string &artifact,

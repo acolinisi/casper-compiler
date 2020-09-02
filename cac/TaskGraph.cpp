@@ -83,8 +83,7 @@ Task& TaskGraph::createTask(PyKernel kern, std::vector<Value *> args,
 Task& TaskGraph::createTask(HalideKernel kern, std::vector<Value *> args,
 				std::vector<Task*> deps)
 {
-	std::unique_ptr<Task> task(new HalideTask(kern.func, args,
-							kern.params));
+	std::unique_ptr<Task> task(new HalideTask(kern.func, args));
 	return createTask(std::move(task), deps);
 }
 

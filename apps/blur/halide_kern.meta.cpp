@@ -1,3 +1,4 @@
+#include "casper.h"
 #include "Halide.h"
 #include <stdio.h>
 #include <cmath>
@@ -10,10 +11,10 @@ public:
     GeneratorParam<int> tile_y{"tile_y", /* 8 */ 1};   // Y tile.
 
     // TODO: name descriptively
-    GeneratorParam<int> p1{"p1", 1};
-    GeneratorParam<int> p2{"p2", 1};
-    GeneratorParam<int> p3{"p3", 1};
-    GeneratorParam<int> p4{"p4", 1};
+    cac::TunableGeneratorParam p1{"p1", 1};
+    cac::TunableGeneratorParam p2{"p2", 1};
+    cac::TunableGeneratorParam p3{"p3", 1};
+    cac::TunableGeneratorParam p4{"p4", 1};
 
     Input<Buffer<double>> input{"input", 2};
     Output<Buffer<double>> blur_y{"blur_y", 2};

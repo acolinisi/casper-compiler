@@ -129,6 +129,20 @@ std::string makeHalideArtifactName(const std::string &generator,
 
 namespace cac {
 
+// TODO: turn this into 'createHalideGenerators()', and store the
+// generator object in the task object.
+// Populates tunable parameter names list in Halide task objects
+void introspectHalideParams(cac::TaskGraph &tg) {
+  for (auto &task : tg.tasks) {
+    if (task->type == cac::Task::Halide) {
+      cac::HalideTask *halideTaskObj =
+	static_cast<cac::HalideTask *>(task.get());
+      const std::string &generator = task->func;
+      halideTaskObj->params = cac::introspectHalideParams(generator);
+    }
+  }
+}
+
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
     cac::KnowledgeBase &kb,
     MLIRContext &context, OwningModuleRef &module)
