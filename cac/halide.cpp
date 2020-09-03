@@ -1,4 +1,8 @@
 #include "CasperHalide.h"
+#include "TaskGraph.h"
+#include "TaskGraphImpl.h"
+#include "Platform.h"
+#include "KnowledgeBase.h"
 
 #include <Halide.h>
 #include <Halide/Generator.h>
@@ -62,6 +66,12 @@ std::map<Output, std::string> compute_output_files(const Target &target,
     return output_files;
 }
 
+std::string makeArtifactName(const std::string &generator,
+    const cac::NodeDesc &nodeDesc)
+{
+      return generator + "_v" + std::to_string(nodeDesc.id);
+}
+
 const Target target{"host-no_runtime"};
 const std::string output_dir(".");
 
@@ -70,26 +80,6 @@ const CompilerLoggerFactory no_compiler_logger_factory =
   std::unique_ptr<Internal::CompilerLogger> {
     return nullptr;
   };
-
-} // namespace anon
-
-namespace cac {
-
-// TODO: perhaps save the instantiated generator(/stub) object to
-// not have to recreated it during the compile step
-std::vector<std::string> introspectHalideParams(const std::string &generator) {
-      auto gen = Internal::GeneratorRegistry::create(generator,
-	  GeneratorContext(target));
-      auto &paramInfo = gen->param_info();
-      std::vector<std::string> tunables;
-      for (auto *p : paramInfo.generator_params()) {
-        // TODO: need a myType() method in base class
-        if (dynamic_cast<::cac::TunableGeneratorParam*>(p)) {
-          tunables.push_back(p->name);
-        }
-      }
-      return tunables;
-}
 
 void compileHalideKernel(const std::string &generator,
     const std::string &artifact,
@@ -112,11 +102,12 @@ void compileHalideKernel(const std::string &generator,
   auto output_files = compute_output_files(target, base_path, outputs);
   auto module_factory = [&generator, &generator_args, build_gradient_module]
     (const std::string &name, const Target &target) -> Module {
+	  // NOTE: generator objects are single-use, so recreate for each build
       auto gen = Internal::GeneratorRegistry::create(generator,
-	  GeneratorContext(target));
+	  				GeneratorContext(target));
       gen->set_generator_param_values(generator_args);
       return build_gradient_module ?
-	gen->build_gradient_module(name) : gen->build_module(name);
+		  gen->build_gradient_module(name) : gen->build_module(name);
   };
   compile_multitarget(function_name, output_files, targets, module_factory,
       no_compiler_logger_factory);
@@ -129,5 +120,60 @@ void compileHalideRuntime() {
   auto output_files = compute_output_files(target, base_path, outputs);
   compile_standalone_runtime(output_files, target);
 }
+
+} // namespace anon
+
+namespace cac {
+
+// Populates fields in Halide with tunable parameter names.
+void introspectHalideTasks(cac::TaskGraph &tg) {
+	for (auto &task : tg.tasks) {
+		if (task->type == cac::Task::Halide) {
+			cac::HalideTask *halideTaskObj =
+				static_cast<cac::HalideTask *>(task.get());
+			const std::string &generator = task->func;
+
+			// Note: we can't save the generator in task obj and re-use
+			// it for compilation, because generators are single-use,
+			// whereas we need to compile per platform.
+			auto gen = Internal::GeneratorRegistry::create(generator,
+						GeneratorContext(target));
+
+			auto &paramInfo = gen->param_info();
+			for (auto *p : paramInfo.generator_params()) {
+				// TODO: need a myType() method in base class
+				if (dynamic_cast<::cac::TunableGeneratorParam*>(p)) {
+					halideTaskObj->impl->params.push_back(p->name);
+				}
+			}
+		}
+	}
+}
+
+void compileHalideTasks(cac::TaskGraph &tg, cac::Platform &plat,
+		cac::KnowledgeBase &kb) {
+	for (auto &task : tg.tasks) {
+		if (task->type == cac::Task::Halide) {
+			cac::HalideTask *hTask = static_cast<cac::HalideTask *>(task.get());
+			// Compile as many variants as there are node types in the platform
+			for (auto &nodeDesc : plat.nodeTypes) {
+				const std::string &generator = task->func;
+				const std::string &artifact =
+					makeArtifactName(generator, nodeDesc);
+
+				auto& params = kb.getParams(generator, nodeDesc);
+				std::cerr << "params for generator " << generator << ":"
+					<< std::endl;
+				for (auto &kv : params) {
+					std::cerr << kv.first << " = " << kv.second << std::endl;
+				}
+
+				compileHalideKernel(generator, artifact, params);
+			}
+		}
+	}
+	compileHalideRuntime();
+}
+
 
 } // namespace cac

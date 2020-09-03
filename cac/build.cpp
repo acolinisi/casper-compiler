@@ -119,57 +119,13 @@ mlir::LLVM::LLVMFuncOp declare_free_obj_func(mlir::LLVM::LLVMDialect *llvmDialec
       llvmFnType);
 }
 
-std::string makeHalideArtifactName(const std::string &generator,
-    const cac::NodeDesc &nodeDesc)
-{
-      return generator + "_v" + std::to_string(nodeDesc.id);
-}
-
 } // anon namespace
 
 namespace cac {
 
-// TODO: turn this into 'createHalideGenerators()', and store the
-// generator object in the task object.
-// Populates tunable parameter names list in Halide task objects
-void introspectHalideParams(cac::TaskGraph &tg) {
-  for (auto &task : tg.tasks) {
-    if (task->type == cac::Task::Halide) {
-      cac::HalideTask *halideTaskObj =
-	static_cast<cac::HalideTask *>(task.get());
-      const std::string &generator = task->func;
-      halideTaskObj->impl->params = cac::introspectHalideParams(generator);
-    }
-  }
-}
-
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
-    cac::KnowledgeBase &kb,
     MLIRContext &context, OwningModuleRef &module)
 {
-  std::vector<std::string> generators;
-  for (auto &task : tg.tasks) {
-    if (task->type == cac::Task::Halide)
-      generators.push_back(task->func);
-  }
-
-  for (auto& generator : generators) {
-    // Compile as many variants as there are node types in the platform
-    for (auto &nodeDesc : plat.nodeTypes) {
-      const std::string &artifact =
-	makeHalideArtifactName(generator, nodeDesc);
-      auto& params = kb.getParams(generator, nodeDesc);
-
-      std::cerr << "params for generator " << generator << ":" << std::endl;
-      for (auto &kv : params) {
-	std::cerr << kv.first << " = " << kv.second << std::endl;
-      }
-
-      cac::compileHalideKernel(generator, artifact, params);
-    }
-  }
-  cac::compileHalideRuntime();
-
   module = OwningModuleRef(ModuleOp::create(
         UnknownLoc::get(&context)));
 

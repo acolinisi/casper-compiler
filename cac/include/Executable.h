@@ -14,7 +14,7 @@ namespace cac {
 
 	class Executable {
 	public:
-		Executable(TaskGraph &tg, Platform &plat, KnowledgeBase &kb);
+		Executable(TaskGraph &tg, Platform &plat);
 		~Executable();
 
 		int emitLLVMIR(llvm::raw_ostream &os);
