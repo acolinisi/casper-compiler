@@ -25,8 +25,8 @@ add_llvm_library(cac
   casper.cpp
   halide.cpp
   ini.cpp
+  mlir.cpp
   tune.cpp
-  Executable.cpp
   KnowledgeBase.cpp
   Options.cpp
   Platform.cpp

@@ -1,13 +1,10 @@
 #include "TaskGraph.h"
-#include "Executable.h"
 #include "KnowledgeBase.h"
 #include "Platform.h"
 #include "Options.h"
 #include "Build.h"
 
 #include "tune.h"
-
-#include "llvm/Support/raw_ostream.h"
 
 namespace {
 
@@ -41,24 +38,6 @@ void composeArgsFile(cac::TaskGraph &tg, cac::KnowledgeBase &db) {
 	fout << std::endl;
 }
 
-void emitLLVM(cac::TaskGraph &tg, cac::Platform &plat) {
-	std::error_code ec;
-	llvm::StringRef outFileName(tg.name + ".ll");
-	llvm::raw_fd_ostream fout(outFileName, ec);
-	if (ec) {
-		std::ostringstream msg;
-		msg << "failed to open output file: "
-			<< outFileName.str() << ": " << ec.message();
-		throw std::runtime_error{msg.str()};
-	}
-
-	cac::Executable exec(tg, plat);
-
-	int rc = exec.emitLLVMIR(fout);
-	if (rc)
-		throw std::runtime_error{"failed to lower to LLVM"};
-}
-
 } // namespace anon
 
 namespace cac {
@@ -78,7 +57,7 @@ void compile(TaskGraph &tg, const std::string &platformFile,
 	cac::introspectHalideTasks(tg);
 	cac::tune(tg, db, modelFile, modelCPFile, candidatesFile);
 	cac::compileHalideTasks(tg, plat, db);
-	emitLLVM(tg, plat);
+	cac::emitLLVMIR(tg, plat, tg.name + ".ll");
 }
 
 int tryCompile(TaskGraph &tg, const std::string &platformFile,

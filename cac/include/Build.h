@@ -15,6 +15,8 @@ namespace cac {
   class Platform;
   class KnowledgeBase;
 
+void emitLLVMIR(cac::TaskGraph &tg, cac::Platform &plat,
+    const std::string &outputFile);
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
     mlir::MLIRContext &context, mlir::OwningModuleRef &module);
 

@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Executable.h"
 #include "TaskGraph.h"
 #include "Platform.h"
 #include "Build.h"
@@ -91,6 +90,8 @@ enum Action emitAction = Action::DumpLLVMIR;
 bool enableOpt = false;
 #endif
 
+namespace {
+
 /// Returns a Toy AST resulting from parsing the file or a nullptr on error.
 std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
@@ -105,45 +106,11 @@ std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
   return parser.parseModule();
 }
 
-int loadMLIR(mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
-  // Handle '.toy' input to the compiler.
-  if (inputType != InputType::MLIR &&
-      !llvm::StringRef(inputFilename).endswith(".mlir")) {
-    auto moduleAST = parseInputFile(inputFilename);
-    if (!moduleAST)
-      return 6;
-    module = mlirGen(context, *moduleAST);
-    return !module ? 1 : 0;
-  }
-
-  // Otherwise, the input is '.mlir'.
-  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
-      llvm::MemoryBuffer::getFileOrSTDIN(inputFilename);
-  if (std::error_code EC = fileOrErr.getError()) {
-    llvm::errs() << "Could not open input file: " << EC.message() << "\n";
-    return -1;
-  }
-
-  // Parse the input mlir.
-  llvm::SourceMgr sourceMgr;
-  sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
-  module = mlir::parseSourceFile(sourceMgr, &context);
-  if (!module) {
-    llvm::errs() << "Error can't load file " << inputFilename << "\n";
-    return 3;
-  }
-  return 0;
-}
-
 int loadAndProcessMLIR(cac::TaskGraph &tg, cac::Platform &plat,
     mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
-#if 0
-  if (int error = loadMLIR(context, module))
-    return error;
-#else
+
   if (int error = buildMLIRFromGraph(tg, plat, context, module))
     return error;
-#endif
 
   mlir::PassManager pm(&context);
   // Apply any generic pass manager command line options and run the pipeline.
@@ -230,6 +197,7 @@ int dumpLLVMIR(llvm::raw_ostream &os, mlir::ModuleOp module) {
   return 0;
 }
 
+#if 0
 int runJit(mlir::ModuleOp module) {
   // Initialize LLVM targets.
   llvm::InitializeNativeTarget();
@@ -255,6 +223,7 @@ int runJit(mlir::ModuleOp module) {
 
   return 0;
 }
+#endif
 
 void registerDialects() {
   mlir::registerDialect<mlir::StandardOpsDialect>();
@@ -271,55 +240,30 @@ void registerDialects() {
   mlir::registerDialect<mlir::toy::ToyDialect>();
 }
 
-int build(cac::TaskGraph &tg, cac::Platform &plat,
-    mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
-  if (int error = loadAndProcessMLIR(tg, plat, context, module))
-    return error;
-
-  // If we aren't exporting to non-mlir, then we are done.
-  bool isOutputingMLIR = emitAction <= Action::DumpMLIRLLVM;
-  if (isOutputingMLIR) {
-    module->dump();
-    return 0;
-  }
-  return -1;
-}
-
+} // namespace anon
 
 namespace cac {
 
-  class ExecutableImpl {
-  public:
-    ExecutableImpl() {
-      // This class is single-use because of the registration, but conceptually
-      // it is not a singleton, so not writing it as such.
-      static int num_instances = 0;
-      assert(num_instances == 0);
-      ++num_instances;
-
-      registerDialects(); // must happen before constructing contexts
-      context.reset(new mlir::MLIRContext());
-    }
-    std::unique_ptr<mlir::MLIRContext> context;
-    mlir::OwningModuleRef module;
-  };
-
-  Executable::~Executable() {
-    delete impl;
-  }
-
-  Executable::Executable(cac::TaskGraph &tg, cac::Platform &plat)
-    : impl(new ExecutableImpl()) {
+void emitLLVMIR(cac::TaskGraph &tg, cac::Platform &plat,
+    const std::string &outputFile) {
     registerDialects(); // must happen before constructing contexts
-    build(tg, plat, *impl->context, impl->module);
-  }
+    mlir::MLIRContext context;
+    mlir::OwningModuleRef module;
+    if (loadAndProcessMLIR(tg, plat, context, module))
+      throw std::runtime_error("failed to load and process MLIR");
 
-  int Executable::emitLLVMIR(llvm::raw_ostream &os) {
-    return dumpLLVMIR(os, *impl->module);
-  }
+	std::error_code ec;
+	llvm::StringRef outFileName(outputFile);
+	llvm::raw_fd_ostream fout(outFileName, ec);
+	if (ec) {
+		std::ostringstream msg;
+		msg << "failed to open output file: "
+			<< outFileName.str() << ": " << ec.message();
+		throw std::runtime_error{msg.str()};
+	}
 
-  int Executable::run() {
-    return runJit(*impl->module);
-  }
+    if (dumpLLVMIR(fout, *module))
+      throw std::runtime_error("failed to lower MLIR to LLVMIR");
+}
 
-} /* namespace cac */
+} // namespace cac
