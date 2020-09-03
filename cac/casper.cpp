@@ -2,9 +2,10 @@
 #include "KnowledgeBase.h"
 #include "Platform.h"
 #include "Options.h"
-#include "Build.h"
 
 #include "tune.h"
+#include "halide.h"
+#include "mlir.h"
 
 namespace {
 

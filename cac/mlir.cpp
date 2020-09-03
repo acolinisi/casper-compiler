@@ -10,9 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "build.h"
+
 #include "TaskGraph.h"
 #include "Platform.h"
-#include "Build.h"
 
 #include "toy/Dialect.h"
 #include "toy/MLIRGen.h"
