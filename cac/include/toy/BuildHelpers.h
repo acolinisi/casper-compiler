@@ -1,11 +1,9 @@
 #pragma once
 
-//#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-//#include "mlir/Transforms/DialectConversion.h"
 #include "mlir/IR/Location.h"
 
 namespace mlir {
-    class ConversionPatternRewriter;
+    class OpBuilder;
     class TypeConverter;
 
     namespace LLVM {
@@ -16,12 +14,12 @@ namespace mlir {
 namespace mlir {
 namespace toy {
 
-Value allocString(mlir::LLVM::LLVMDialect *llvmDialect,
-    ConversionPatternRewriter &rewriter, TypeConverter *typeConverter,
+Value allocString(OpBuilder &builder, TypeConverter *typeConverter,
+    mlir::LLVM::LLVMDialect *llvmDialect,
     Location loc, StringRef value);
 
-mlir::Value allocString(mlir::LLVM::LLVMDialect *llvmDialect,
-    ConversionPatternRewriter &rewriter, TypeConverter *typeConverter,
+Value allocString(OpBuilder &builder, TypeConverter *typeConverter,
+    mlir::LLVM::LLVMDialect *llvmDialect,
     Location loc, Operation *op, StringRef attrName);
 
 } // namespace toy

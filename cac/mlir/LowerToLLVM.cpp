@@ -419,9 +419,9 @@ public:
     auto launchFuncRef = SymbolRefAttr::get(launchPyFunc, module.getContext());
 
     // Allocate char[] array and fill with value of attribute
-    Value pyModNameArr = toy::allocString(llvmDialect, rewriter, typeConverter,
+    Value pyModNameArr = toy::allocString(rewriter, typeConverter, llvmDialect,
         loc, op, "module");
-    Value pyFuncNameArr = toy::allocString(llvmDialect, rewriter, typeConverter,
+    Value pyFuncNameArr = toy::allocString(rewriter, typeConverter, llvmDialect,
         loc, op, "func");
 
     auto kernOp = cast<toy::PyKernelOp>(op);
@@ -813,8 +813,8 @@ public:
 		auto swStopCall = callCRTStopWatchStop(rewriter, parentModule,
 				llvmDialect, loc);
 		Value elapsed = swStopCall.getResult(0);
-		Value taskName = toy::allocString(llvmDialect, rewriter,
-                    typeConverter, loc, op, "func");
+		Value taskName = toy::allocString(rewriter, typeConverter,
+                    llvmDialect, loc, op, "func");
 		// TODO: need to call each variant
 		Value variantId = createConstInt32(rewriter, typeConverter, loc, 1);
 
