@@ -183,23 +183,21 @@ class JumpTable {
 public:
 	JumpTable(ConversionPatternRewriter &rewriter, ModuleOp &mod,
 		TypeConverter *typeConverter, Location loc,
-		LLVM::LLVMType funcType, ArrayAttr &variantIds,
-		std::function<std::string(unsigned)> indexToFunc)
+		LLVM::LLVMType funcType, unsigned numEntries,
+		std::function<std::pair<unsigned, FlatSymbolRefAttr>(unsigned)> map)
 	: rewriter(rewriter), funcType(funcType) {
-		unsigned numVariants = variantIds.size();
-		Value numVariantsVal = createConstIndex(rewriter, typeConverter, loc,
-				numVariants);
+		Value numEntriesVal = createConstIndex(rewriter, typeConverter, loc,
+				numEntries);
 		tableAddr = rewriter.create<LLVM::AllocaOp>(loc,
-				funcType.getPointerTo().getPointerTo(), numVariantsVal,
+				funcType.getPointerTo().getPointerTo(), numEntriesVal,
 				/*alignment=*/0);
 
-		for (int i = 0; i < numVariants; ++i) {
-			unsigned slotIdx = variantIds[i].cast<IntegerAttr>().getInt();
-			StringRef func{indexToFunc(slotIdx)};
+		for (int i = 0; i < numEntries; ++i) {
+			std::pair<unsigned, FlatSymbolRefAttr> mapEntry = map(i);
+			unsigned slotIdx = mapEntry.first;
+			FlatSymbolRefAttr kernRef = mapEntry.second;
 
 			// Get the pointer to the function variant
-			FlatSymbolRefAttr kernRef =
-				getOrInsertKernFunc(rewriter, mod, func, funcType);
 			auto funcAddr = rewriter.create<LLVM::AddressOfOp>(loc,
 					funcType.getPointerTo(), kernRef);
 
@@ -812,18 +810,22 @@ public:
 
     StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
     assert(funcAttr); // verified
-    std::string funcStr = funcAttr.getValue().str();
+    std::string kernName = funcAttr.getValue().str();
 
     LLVM::LLVMType funcType = getKernFuncType(argTypes, llvmDialect);
 
-	auto variantIdToKernFuncName = [&funcStr](unsigned variantId) {
-		// TODO: reuse makeVariantNameFunction between here and build.cpp
+	// Pass the map in a lazy way, effectively an iterator
+	auto kernFuncMap = [&rewriter, &parentModule,
+		 &kernName, &funcType, &variantsAttr](unsigned index) {
+		unsigned variantId = variantsAttr[index].cast<IntegerAttr>().getInt();
 		std::ostringstream funcName;
-		funcName << funcStr << "_v" << variantId;
-		return funcName.str();
+		funcName << kernName << "_v" << variantId;
+		FlatSymbolRefAttr funcRef = getOrInsertKernFunc(rewriter, parentModule,
+				funcName.str(), funcType);
+		return std::pair<unsigned, FlatSymbolRefAttr>(variantId, funcRef);
 	};
 	JumpTable kernVariantsTable(rewriter, parentModule, typeConverter, loc,
-			funcType, variantsAttr, variantIdToKernFuncName);
+			funcType, variantsAttr.size(), kernFuncMap);
 
     auto nodeId = callCRTGetNodeTypeId(rewriter, parentModule, llvmDialect,
 			loc).getResult(0);
