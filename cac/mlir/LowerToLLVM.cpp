@@ -88,6 +88,65 @@ Value allocString(LLVM::LLVMDialect *llvmDialect,
       loc, attr.getValue());
 }
 
+Value createConstInt32(ConversionPatternRewriter &rewriter,
+		TypeConverter *typeConverter, Location loc, int32_t val) {
+	auto ty = typeConverter->convertType(rewriter.getI32Type());
+	auto attr = rewriter.getIntegerAttr(rewriter.getI32Type(), val);
+	return rewriter.create<LLVM::ConstantOp>(loc, ty, attr);
+}
+
+void declareFunc(ConversionPatternRewriter &rewriter, ModuleOp &mod,
+		StringRef funcName, LLVM::LLVMType &funcType) {
+	// Insert the function declaration into the body of the parent module.
+	PatternRewriter::InsertionGuard insertGuard(rewriter);
+	rewriter.setInsertionPointToStart(mod.getBody());
+	rewriter.create<LLVM::LLVMFuncOp>(mod.getLoc(), funcName, funcType);
+}
+
+LLVM::CallOp callCRT(ConversionPatternRewriter &rewriter, ModuleOp &mod,
+		Location loc, StringRef funcName,
+		std::function<LLVM::LLVMType()> typeCtor,
+		ValueRange args = ValueRange{}) {
+	if (!mod.lookupSymbol<LLVM::LLVMFuncOp>(funcName)) {
+		auto funcType = typeCtor();
+		declareFunc(rewriter, mod, funcName, funcType);
+	}
+	auto funcOp = mod.lookupSymbol<LLVM::LLVMFuncOp>(funcName);
+	return rewriter.create<LLVM::CallOp>(loc, funcOp, args);
+}
+
+LLVM::CallOp callCRTStopWatchStart(ConversionPatternRewriter &rewriter,
+		ModuleOp &mod, LLVM::LLVMDialect *llvmDialect, Location loc) {
+	auto typeCtor = [llvmDialect]() {
+		auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+		return LLVM::LLVMType::getFunctionTy(llvmVoidTy, {}, /*VarArg*/ false);
+	};
+	return callCRT(rewriter, mod, loc, "_crt_prof_stopwatch_start", typeCtor);
+}
+LLVM::CallOp callCRTStopWatchStop(ConversionPatternRewriter &rewriter,
+		ModuleOp &mod, LLVM::LLVMDialect *llvmDialect, Location loc) {
+	auto typeCtor = [llvmDialect]() {
+		auto llvmFloatTy = LLVM::LLVMType::getFloatTy(llvmDialect);
+		return LLVM::LLVMType::getFunctionTy(llvmFloatTy, {}, /*VarArg*/ false);
+	};
+	return callCRT(rewriter, mod, loc, "_crt_prof_stopwatch_stop", typeCtor);
+}
+LLVM::CallOp callCRTLogMeasurement(ConversionPatternRewriter &rewriter,
+		ModuleOp &mod, LLVM::LLVMDialect *llvmDialect, Location loc,
+		ValueRange args) {
+	auto typeCtor = [llvmDialect]() {
+		auto llvmFloatTy = LLVM::LLVMType::getFloatTy(llvmDialect);
+		auto llvmCharTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
+		auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+		auto llvmI32Ty = LLVM::LLVMType::getInt32Ty(llvmDialect);
+        return LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+            {llvmCharTy.getPointerTo(), llvmI32Ty, llvmFloatTy},
+            /*isVarArg*/ false);
+	};
+	return callCRT(rewriter, mod, loc, "_crt_prof_log_measurement", typeCtor,
+			args);
+}
+
 /// Lowers `toy.print` to a loop nest calling `printf` on each of the individual
 /// elements of the array.
 class PrintOpLowering : public ConversionPattern {
@@ -747,104 +806,25 @@ public:
     std::cout << "profile: " << profile << std::endl;
 
     if (profile) {
-      //auto llvmIntTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
-      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
-      std::string swStartFunc{"_crt_prof_stopwatch_start"};
-      if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStartFunc)) {
-        auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy, {},
-            /*isVarArg*/ false);
-
-        // Insert the function declaration into the body of the parent module.
-        PatternRewriter::InsertionGuard insertGuard(rewriter);
-        rewriter.setInsertionPointToStart(parentModule.getBody());
-        rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
-            swStartFunc, llvmFnType);
-      }
-      LLVM::LLVMFuncOp swStartFuncOp =
-        parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStartFunc);
-      auto swStartCall = rewriter.create<LLVM::CallOp>(loc, swStartFuncOp,
-          ValueRange{});
+      callCRTStopWatchStart(rewriter, parentModule, llvmDialect, loc);
     }
-
-#if 0 // a failed alternative attempt at indirecting the kernel call
-      // throught the runtime library, thus keeping all the timing
-      // code in the runtime library. This requires defining an adapter
-      // function for each kernel that is vararg.
-    if (profile) {
-      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
-      std::string swStartFunc{"invoke_kernel"}; // see runtime lib
-      if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStartFunc)) {
-        auto llvmKernFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
-            {}, /*isVarArg*/ false);
-        auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
-            {llvmKernFnType.getPointerTo()},
-            /*isVarArg*/ false);
-
-        // Insert the function declaration into the body of the parent module.
-        PatternRewriter::InsertionGuard insertGuard(rewriter);
-        rewriter.setInsertionPointToStart(parentModule.getBody());
-        rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
-            swStartFunc, llvmFnType);
-      }
-      LLVM::LLVMFuncOp invokeKernFuncOp =
-        parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStartFunc);
-      auto invokeKernCall = rewriter.create<LLVM::CallOp>(loc,
-          invokeKernFuncOp, ValueRange{funcPtr});
-    }
-#endif
 
     auto newOp = rewriter.create<LLVM::CallOp>(op->getLoc(),
       LLVM::LLVMType::getVoidTy(llvmDialect), opArgVals,
       ArrayRef<NamedAttribute>{});
 
-    if (profile) {
-      //auto llvmIntTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
-      auto llvmFloatTy = LLVM::LLVMType::getFloatTy(llvmDialect);
-      std::string swStopFunc{"_crt_prof_stopwatch_stop"};
-      if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStopFunc)) {
-        auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmFloatTy, {},
-            /*isVarArg*/ false);
+	if (profile) {
+		auto swStopCall = callCRTStopWatchStop(rewriter, parentModule,
+				llvmDialect, loc);
+		Value elapsed = swStopCall.getResult(0);
+		Value taskName = allocString(llvmDialect, rewriter, typeConverter, loc,
+				op, "func");
+		// TODO: need to call each variant
+		Value variantId = createConstInt32(rewriter, typeConverter, loc, 1);
 
-        // Insert the function declaration into the body of the parent module.
-        PatternRewriter::InsertionGuard insertGuard(rewriter);
-        rewriter.setInsertionPointToStart(parentModule.getBody());
-        rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
-            swStopFunc, llvmFnType);
-      }
-      LLVM::LLVMFuncOp swStopFuncOp =
-        parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStopFunc);
-      auto swStopCall = rewriter.create<LLVM::CallOp>(loc, swStopFuncOp,
-          ValueRange{});
-
-      Value taskName = allocString(llvmDialect, rewriter, typeConverter, loc,
-          op, "func");
-
-      auto llvmCharTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
-      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
-      auto llvmI32Ty = LLVM::LLVMType::getInt32Ty(llvmDialect);
-      std::string logFunc{"_crt_prof_log_measurement"};
-      if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(logFunc)) {
-        auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
-            {llvmCharTy.getPointerTo(), llvmI32Ty, llvmFloatTy},
-            /*isVarArg*/ false);
-
-        // Insert the function declaration into the body of the parent module.
-        PatternRewriter::InsertionGuard insertGuard(rewriter);
-        rewriter.setInsertionPointToStart(parentModule.getBody());
-        rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
-            logFunc, llvmFnType);
-      }
-      LLVM::LLVMFuncOp logFuncOp =
-        parentModule.lookupSymbol<LLVM::LLVMFuncOp>(logFunc);
-
-      uint32_t variantId = 1; // TODO: need to call each variant
-      Value variantIdVal = rewriter.create<LLVM::ConstantOp>(loc,
-          typeConverter->convertType(rewriter.getI32Type()),
-        rewriter.getIntegerAttr(rewriter.getI32Type(), variantId));
-
-      auto logCall = rewriter.create<LLVM::CallOp>(loc, logFuncOp,
-          ValueRange{taskName, variantIdVal, swStopCall.getResult(0)});
-    }
+		callCRTLogMeasurement(rewriter, parentModule, llvmDialect, loc,
+				{taskName, variantId, elapsed});
+	}
 
     // Notify the rewriter that this operation has been removed.
     rewriter.eraseOp(op);
