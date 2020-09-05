@@ -120,7 +120,7 @@ LLVM::CallOp callCRTGetNodeTypeId(ConversionPatternRewriter &rewriter,
 		auto llvmIntTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
 		return LLVM::LLVMType::getFunctionTy(llvmIntTy, {}, /*isVarArg*/ false);
 	};
-	return callCRT(rewriter, mod, loc, "_crt_prof_get_node_type_id", typeCtor);
+	return callCRT(rewriter, mod, loc, "_crt_plat_get_node_type_id", typeCtor);
 }
 
 
