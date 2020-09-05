@@ -46,6 +46,47 @@ using namespace mlir;
 
 namespace {
 
+// Allocate and fill a char[] array
+// TODO: there has to be a better way to alloc and fill an array
+// It needs to be alloced in .data, instead of on the stack.
+Value allocString(LLVM::LLVMDialect *llvmDialect,
+    ConversionPatternRewriter &rewriter, TypeConverter *typeConverter,
+    Location loc, StringRef value) {
+  auto charTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
+  Value strLen = rewriter.create<LLVM::ConstantOp>(loc,
+      typeConverter->convertType(rewriter.getIndexType()),
+      rewriter.getIntegerAttr(rewriter.getIndexType(), value.size() + 1));
+  // TODO: why shouldn't this be pointer to array type?
+  Value charArr = rewriter.create<LLVM::AllocaOp>(loc,
+      charTy.getPointerTo(), strLen, /*alignment=*/0);
+
+  // Fill allocated array with string passed in 'value'
+  for (int index = 0; index < value.size() + 1; ++index) {
+    auto indexVal = rewriter.create<LLVM::ConstantOp>(loc,
+        typeConverter->convertType(rewriter.getIndexType()),
+        rewriter.getIntegerAttr(rewriter.getIndexType(), index));
+
+    auto charAddr = rewriter.create<LLVM::GEPOp>(loc, charTy.getPointerTo(),
+        charArr, ValueRange{indexVal});
+
+    auto charVal = rewriter.create<LLVM::ConstantOp>(loc,
+        typeConverter->convertType(rewriter.getIntegerType(8)),
+      rewriter.getI8IntegerAttr(index < value.size() ? value[index] : 0));
+
+    rewriter.create<LLVM::StoreOp>(loc, charVal, charAddr);
+  }
+  return charArr;
+}
+
+Value allocString(LLVM::LLVMDialect *llvmDialect,
+    ConversionPatternRewriter &rewriter, TypeConverter *typeConverter,
+    Location loc, Operation *op, StringRef attrName) {
+  StringAttr attr = op->getAttrOfType<StringAttr>(attrName);
+  assert(attr); // verified by .td
+  return allocString(llvmDialect, rewriter, typeConverter,
+      loc, attr.getValue());
+}
+
 /// Lowers `toy.print` to a loop nest calling `printf` on each of the individual
 /// elements of the array.
 class PrintOpLowering : public ConversionPattern {
@@ -285,8 +326,10 @@ public:
     auto launchFuncRef = SymbolRefAttr::get(launchPyFunc, module.getContext());
 
     // Allocate char[] array and fill with value of attribute
-    Value pyModNameArr = allocString(llvmDialect, rewriter, loc, op, "module");
-    Value pyFuncNameArr = allocString(llvmDialect, rewriter, loc, op, "func");
+    Value pyModNameArr = allocString(llvmDialect, rewriter, typeConverter, loc,
+        op, "module");
+    Value pyFuncNameArr = allocString(llvmDialect, rewriter, typeConverter, loc,
+        op, "func");
 
     auto kernOp = cast<toy::PyKernelOp>(op);
 
@@ -329,45 +372,6 @@ public:
   }
 
 private:
-  // Allocate and fill a char[] array
-  // TODO: there has to be a better way to alloc and fill an array
-  // It needs to be alloced in .data, instead of on the stack.
-  Value allocString(LLVM::LLVMDialect *llvmDialect,
-      ConversionPatternRewriter &rewriter, Location loc,
-      StringRef value) const {
-    auto charTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
-    Value strLen = rewriter.create<LLVM::ConstantOp>(loc,
-        typeConverter->convertType(rewriter.getIndexType()),
-        rewriter.getIntegerAttr(rewriter.getIndexType(), value.size() + 1));
-    // TODO: why shouldn't this be pointer to array type?
-    Value charArr = rewriter.create<LLVM::AllocaOp>(loc,
-        charTy.getPointerTo(), strLen, /*alignment=*/0);
-
-    // Fill allocated array with string passed in 'value'
-    for (int index = 0; index < value.size() + 1; ++index) {
-      auto indexVal = rewriter.create<LLVM::ConstantOp>(loc,
-          typeConverter->convertType(rewriter.getIndexType()),
-          rewriter.getIntegerAttr(rewriter.getIndexType(), index));
-
-      auto charAddr = rewriter.create<LLVM::GEPOp>(loc, charTy.getPointerTo(),
-          charArr, ValueRange{indexVal});
-
-      auto charVal = rewriter.create<LLVM::ConstantOp>(loc,
-          typeConverter->convertType(rewriter.getIntegerType(8)),
-        rewriter.getI8IntegerAttr(index < value.size() ? value[index] : 0));
-
-      rewriter.create<LLVM::StoreOp>(loc, charVal, charAddr);
-    }
-    return charArr;
-  }
-
-  Value allocString(LLVM::LLVMDialect *llvmDialect,
-      ConversionPatternRewriter &rewriter, Location loc,
-      Operation *op, StringRef attrName) const {
-    StringAttr attr = op->getAttrOfType<StringAttr>(attrName);
-    assert(attr); // verified by .td
-    return allocString(llvmDialect, rewriter, loc, attr.getValue());
-  }
 };
 
 class ToyLLVMTypeConverter : public LLVMTypeConverter {
