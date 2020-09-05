@@ -34,6 +34,7 @@ add_llvm_library(cac
   TaskGraph.cpp
   TaskGraphImpl.cpp
   parser/AST.cpp
+  mlir/BuildHelpers.cpp
   mlir/MLIRGen.cpp
   mlir/Dialect.cpp
   mlir/LowerToAffineLoops.cpp

@@ -23,6 +23,7 @@
 
 #include "toy/Dialect.h"
 #include "toy/Passes.h"
+#include "toy/BuildHelpers.h"
 
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
@@ -46,47 +47,6 @@ using namespace mlir;
 //===----------------------------------------------------------------------===//
 
 namespace {
-
-// Allocate and fill a char[] array
-// TODO: there has to be a better way to alloc and fill an array
-// It needs to be alloced in .data, instead of on the stack.
-Value allocString(LLVM::LLVMDialect *llvmDialect,
-    ConversionPatternRewriter &rewriter, TypeConverter *typeConverter,
-    Location loc, StringRef value) {
-  auto charTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
-  Value strLen = rewriter.create<LLVM::ConstantOp>(loc,
-      typeConverter->convertType(rewriter.getIndexType()),
-      rewriter.getIntegerAttr(rewriter.getIndexType(), value.size() + 1));
-  // TODO: why shouldn't this be pointer to array type?
-  Value charArr = rewriter.create<LLVM::AllocaOp>(loc,
-      charTy.getPointerTo(), strLen, /*alignment=*/0);
-
-  // Fill allocated array with string passed in 'value'
-  for (int index = 0; index < value.size() + 1; ++index) {
-    auto indexVal = rewriter.create<LLVM::ConstantOp>(loc,
-        typeConverter->convertType(rewriter.getIndexType()),
-        rewriter.getIntegerAttr(rewriter.getIndexType(), index));
-
-    auto charAddr = rewriter.create<LLVM::GEPOp>(loc, charTy.getPointerTo(),
-        charArr, ValueRange{indexVal});
-
-    auto charVal = rewriter.create<LLVM::ConstantOp>(loc,
-        typeConverter->convertType(rewriter.getIntegerType(8)),
-      rewriter.getI8IntegerAttr(index < value.size() ? value[index] : 0));
-
-    rewriter.create<LLVM::StoreOp>(loc, charVal, charAddr);
-  }
-  return charArr;
-}
-
-Value allocString(LLVM::LLVMDialect *llvmDialect,
-    ConversionPatternRewriter &rewriter, TypeConverter *typeConverter,
-    Location loc, Operation *op, StringRef attrName) {
-  StringAttr attr = op->getAttrOfType<StringAttr>(attrName);
-  assert(attr); // verified by .td
-  return allocString(llvmDialect, rewriter, typeConverter,
-      loc, attr.getValue());
-}
 
 Value createConstInt32(ConversionPatternRewriter &rewriter,
 		TypeConverter *typeConverter, Location loc, int32_t val) {
@@ -459,10 +419,10 @@ public:
     auto launchFuncRef = SymbolRefAttr::get(launchPyFunc, module.getContext());
 
     // Allocate char[] array and fill with value of attribute
-    Value pyModNameArr = allocString(llvmDialect, rewriter, typeConverter, loc,
-        op, "module");
-    Value pyFuncNameArr = allocString(llvmDialect, rewriter, typeConverter, loc,
-        op, "func");
+    Value pyModNameArr = toy::allocString(llvmDialect, rewriter, typeConverter,
+        loc, op, "module");
+    Value pyFuncNameArr = toy::allocString(llvmDialect, rewriter, typeConverter,
+        loc, op, "func");
 
     auto kernOp = cast<toy::PyKernelOp>(op);
 
@@ -853,8 +813,8 @@ public:
 		auto swStopCall = callCRTStopWatchStop(rewriter, parentModule,
 				llvmDialect, loc);
 		Value elapsed = swStopCall.getResult(0);
-		Value taskName = allocString(llvmDialect, rewriter, typeConverter, loc,
-				op, "func");
+		Value taskName = toy::allocString(llvmDialect, rewriter,
+                    typeConverter, loc, op, "func");
 		// TODO: need to call each variant
 		Value variantId = createConstInt32(rewriter, typeConverter, loc, 1);
 

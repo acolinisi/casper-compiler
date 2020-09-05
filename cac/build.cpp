@@ -4,6 +4,7 @@
 #include "TaskGraphImpl.h"
 
 #include "toy/Dialect.h"
+#include "toy/BuildHelpers.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Function.h"
