@@ -146,6 +146,14 @@ LLVM::CallOp callCRTLogMeasurement(ConversionPatternRewriter &rewriter,
 	return callCRT(rewriter, mod, loc, "_crt_prof_log_measurement", typeCtor,
 			args);
 }
+LLVM::CallOp callCRTGetNodeTypeId(ConversionPatternRewriter &rewriter,
+		ModuleOp &mod, LLVM::LLVMDialect *llvmDialect, Location loc) {
+	auto typeCtor = [llvmDialect]() {
+		auto llvmIntTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
+		return LLVM::LLVMType::getFunctionTy(llvmIntTy, {}, /*isVarArg*/ false);
+	};
+	return callCRT(rewriter, mod, loc, "_crt_prof_get_node_type_id", typeCtor);
+}
 
 /// Lowers `toy.print` to a loop nest calling `printf` on each of the individual
 /// elements of the array.
@@ -773,27 +781,11 @@ public:
       rewriter.create<LLVM::StoreOp>(loc, funcAddr, slotAddr);
     }
 
-    // Generate the call to runtime that gets the current node id
-
-    auto llvmIntTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
-    std::string getNodeTypeIdFunc{"get_node_type_id"}; // see runtime lib
-    if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(getNodeTypeIdFunc)) {
-      auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmIntTy, {},
-          /*isVarArg*/ false);
-
-      // Insert the function declaration into the body of the parent module.
-      PatternRewriter::InsertionGuard insertGuard(rewriter);
-      rewriter.setInsertionPointToStart(parentModule.getBody());
-      rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
-          getNodeTypeIdFunc, llvmFnType);
-    }
-    LLVM::LLVMFuncOp getNodeTypeIdFuncOp =
-      parentModule.lookupSymbol<LLVM::LLVMFuncOp>(getNodeTypeIdFunc);
-    auto nodeIdCall = rewriter.create<LLVM::CallOp>(loc, getNodeTypeIdFuncOp, ValueRange{});
+    auto nodeId = callCRTGetNodeTypeId(rewriter, parentModule, llvmDialect,
+			loc).getResult(0);
 
     auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
-        funcType.getPointerTo(), funcPtrAddr,
-        ValueRange{nodeIdCall.getResult(0)});
+        funcType.getPointerTo(), funcPtrAddr, ValueRange{nodeId});
     Value funcPtr = rewriter.create<LLVM::LoadOp>(loc, slotAddr);
 
     SmallVector<Value, 8> opArgVals{funcPtr};
