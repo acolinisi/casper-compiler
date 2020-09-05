@@ -1,8 +1,27 @@
 set(lib casper_runtime)
-add_library(${lib} SHARED platform.cpp python.cpp)
+set(lib_prof casper_runtime_prof) # for profiling harness
+
+set(COMMON_SOURCES
+  platform.cpp
+  python.cpp
+)
+
+add_library(${lib} SHARED ${COMMON_SOURCES})
+
+add_library(${lib_prof} SHARED
+  ${COMMON_SOURCES}
+  profile.cpp
+)
+
+find_package(Halide REQUIRED)
 
 # TODO: not all apps need python, make optional
-find_package(Python COMPONENTS Development REQUIRED)
-target_include_directories(${lib} PRIVATE ${Python_INCLUDE_DIRS})
-target_link_directories(${lib} PRIVATE ${Python_LIBRARY_DIRS})
-target_link_libraries(${lib} ${Python_LIBRARIES})
+# Settings common to both libs
+foreach (rtlib ${lib} ${lib_prof})
+  find_package(Python COMPONENTS Development REQUIRED)
+  target_include_directories(${rtlib} PRIVATE ${Python_INCLUDE_DIRS})
+  target_link_directories(${rtlib} PRIVATE ${Python_LIBRARY_DIRS})
+  target_link_libraries(${rtlib} ${Python_LIBRARIES} Halide::Tools)
+endforeach()
+
+target_link_libraries(${lib_prof} Halide::Tools)

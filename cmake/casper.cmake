@@ -8,7 +8,7 @@ set(CASPER_COMPILER_LIB cac)
 function(casper_add_exec target meta_prog)
 	cmake_parse_arguments(FARG
 		""
-		"BUILD_DIR;PLATFORM"
+		"BUILD_DIR;PLATFORM;MODEL;MODEL_CP;CANDIDATES"
 		"SOURCES;C_KERNEL_SOURCES"
 		${ARGN})
 
@@ -28,10 +28,31 @@ function(casper_add_exec target meta_prog)
 	add_executable(${meta_prog} ${FARG_SOURCES})
 	target_link_libraries(${meta_prog} LINK_PUBLIC ${CASPER_COMPILER_LIB})
 
-	## Run the meta-program
-	add_custom_command(OUTPUT ${target}.ll ${target}.args
-		COMMAND ${meta_prog}
-		DEPENDS ${meta_prog} ${FARG_PLATFORM})
+	set(META_PROG_ARGS
+		--platform ${FARG_PLATFORM}
+		--model ${FARG_MODEL} --model-cp ${FARG_MODEL_CP}
+		--candidates ${FARG_CANDIDATES}
+	)
+	set(META_PROG_DEPS
+		${FARG_PLATFORM}
+		${FARG_MODEL} # ${FARG_MODEL_CP} (it's a prefix...)
+		${FARG_CANDIDATES}
+	)
+
+	## Run the meta-program to generate profiling harness
+	set(prof_harness ${target}_prof)
+	add_custom_command(OUTPUT ${prof_harness}.ll ${prof_harness}.args
+		COMMAND ${meta_prog} --profiling-harness -o ${prof_harness}.ll
+			--build-args ${prof_harness}.args
+			${META_PROG_ARGS}
+		DEPENDS ${meta_prog} ${META_PROG_DEPS})
+
+	### Run the meta-program to generate main application binary
+	#add_custom_command(OUTPUT ${target}.ll ${target}.args
+	#	COMMAND ${meta_prog} -o ${target}.ll
+	#		--build-args ${target}.args
+	#		${META_PROG_ARGS}
+	#	DEPENDS ${meta_prog} ${META_PROG_DEPS} )
 
 	# Generate a separate (nested) CMake project that will link the
 	# application binary. We cannot link the app binary in this CMake
@@ -45,11 +66,11 @@ function(casper_add_exec target meta_prog)
 		project(${target} LANGUAGES CXX C)
 		set(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH})
 		include(casper)
-		casper_app(${target} ${target}.args
+		casper_app(${target} ${prof_harness}
 			C_KERNEL_SOURCES ${FARG_C_KERNEL_SOURCES})
 		"
 	)
-	add_custom_command(OUTPUT ${FARG_BUILD_DIR}/${target}
+	add_custom_command(OUTPUT ${FARG_BUILD_DIR}/${prof_harness}
 		COMMAND ${CMAKE_COMMAND}
 			-S "${CMAKE_CURRENT_BINARY_DIR}"
 			-B "${CMAKE_CURRENT_BINARY_DIR}/${FARG_BUILD_DIR}"
@@ -59,9 +80,10 @@ function(casper_add_exec target meta_prog)
 			-DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}"
 		COMMAND ${CMAKE_COMMAND}
 			--build "${CMAKE_CURRENT_BINARY_DIR}/${FARG_BUILD_DIR}"
-		DEPENDS ${target}.ll)
-	add_custom_target(${target} ALL
-		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${FARG_BUILD_DIR}/${target})
+		DEPENDS ${prof_harness}.ll)
+	add_custom_target(${target} ALL DEPENDS
+		${CMAKE_CURRENT_BINARY_DIR}/${FARG_BUILD_DIR}/${prof_harness})
+		#${CMAKE_CURRENT_BINARY_DIR}/${FARG_BUILD_DIR}/${target})
 	set_target_properties(${target} PROPERTIES
 		ADDITIONAL_CLEAN_FILES ${FARG_BUILD_DIR})
 endfunction()
@@ -70,23 +92,35 @@ endfunction()
 # distinct from the one that builds and runs the meta program; because
 # the meta program generates a file (app_args_file) with information needed to
 # link the app binary, and that file needs to be passed to this function.
-function(casper_app target app_args_file)
+function(casper_app target prof_harness)
+	# TODO
+	# Main app executable
+	#casper_build(${target} ${target}.args ${ARGN})
+	# Profiling harness executable
+	casper_build(${prof_harness} ${prof_harness}.args PROFILING ${ARGN})
+endfunction()
+function(casper_build target app_args_file)
 	file(READ ${app_args_file} APP_VARS_FILE_CONTENT)
 	separate_arguments(ARGS_FROM_FILE UNIX_COMMAND ${APP_VARS_FILE_CONTENT})
 	cmake_parse_arguments(FARG
+		"PROFILING"
 		""
-		""
-		"C_KERNEL_SOURCES;HALIDE_GENERATORS;NODE_TYPE_IDS"
+		"C_KERNEL_SOURCES;HALIDE_TASK_LIBS;NODE_TYPE_IDS"
 		${ARGS_FROM_FILE} ${ARGN})
 
 	find_program(LLC llc REQUIRED DOC "LLVM IR compiler")
 	find_package(Threads)
 
+	if (${FARG_PROFILING})
+		set(rtlib casper_runtime_prof)
+	else()
+		set(rtlib casper_runtime)
+	endif()
 	# Will find Casper lib in /usr/lib when Casper is installed into the
 	# system, otherwise can set a variable (propagated by invocation of the
 	# metaprogram CMake instance), otherwise the app is in Casper source
 	# tree in apps/X/
-	find_library(CASPER_RUNTIME_LIBRARY casper_runtime REQUIRED
+	find_library(CASPER_RUNTIME_LIBRARY ${rtlib} REQUIRED
 	    PATHS ${CASPER_LIBRARIES_PATH} ${META_BUILD_DIR}/../../runtime)
 
 	# Compile the target harness
@@ -108,14 +142,16 @@ function(casper_app target app_args_file)
 	list(APPEND kernel_libs ${lib})
 
 	# Halide libraries that were compiled by the metaprogram when it ran
-	foreach(gen ${FARG_HALIDE_GENERATORS})
-		foreach(node_type_id ${FARG_NODE_TYPE_IDS})
-		# naming convention contract with makeHalideArtifactName() in build.cpp
-		list(APPEND kernel_libs ${META_BUILD_DIR}/lib${gen}_v${node_type_id}.a)
-	    endforeach()
+	#foreach(gen ${FARG_HALIDE_GENERATORS})
+	#	foreach(node_type_id ${FARG_NODE_TYPE_IDS})
+	#	# naming convention contract with makeHalideArtifactName() in build.cpp
+	#	list(APPEND kernel_libs ${META_BUILD_DIR}/lib${gen}_v${node_type_id}.a)
+	#    endforeach()
+	#endforeach()
+	#list(APPEND kernel_libs ${META_BUILD_DIR}/libhalide_runtime.a)
+	foreach(halide_lib ${FARG_HALIDE_TASK_LIBS})
+		list(APPEND kernel_libs ${META_BUILD_DIR}/${halide_lib})
 	endforeach()
-
-	list(APPEND kernel_libs ${META_BUILD_DIR}/libhalide_runtime.a)
 
 	# Link the application binary
 	add_executable(${target} ${CMAKE_CURRENT_BINARY_DIR}/${target}.o)

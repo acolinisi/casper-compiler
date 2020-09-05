@@ -7,7 +7,9 @@ class Platform;
 class KnowledgeBase;
 
 void introspectHalideTasks(cac::TaskGraph &tg);
-void compileHalideTasks(cac::TaskGraph &tg, cac::Platform &plat,
+std::vector<std::string> compileHalideTasks(cac::TaskGraph &tg,
+		cac::Platform &plat, cac::KnowledgeBase &kb);
+std::vector<std::string> compileHalideTasksToProfile(cac::TaskGraph &tg,
 		cac::KnowledgeBase &kb);
 
 } // namespace cac

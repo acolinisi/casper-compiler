@@ -12,6 +12,7 @@ class Platform;
 class KnowledgeBase;
 
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
-		mlir::MLIRContext &context, mlir::OwningModuleRef &module);
+    bool profilingHarness,
+    mlir::MLIRContext &context, mlir::OwningModuleRef &module);
 
 } // namespace cac

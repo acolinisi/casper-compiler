@@ -2,7 +2,9 @@
 #define CAC_KNOWLEDGE_BASE_H
 
 #include <map>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "knowbase.h"
 
@@ -23,10 +25,16 @@ namespace cac {
 				const NodeDesc &nodeDesc, ParamMap &params);
 		const ParamMap& getParams(const std::string &kernelName,
 				const NodeDesc &nodeDesc);
+		void drawSamples(const std::string &generator,
+				std::vector<std::string> paramNames);
+		std::set<ParamMap> &getSamples(const std::string &generator);
 	public:
 		// kernel name -> node type id -> param -> value
 		DB db;
 		graph_t kbGraph;
+		// kernel name -> { param -> value, ... }
+		std::map<std::string, std::set<ParamMap>> samples;
+		unsigned sampleCount; // variants of each kernel to profile
 	};
 } // namespace cac
 

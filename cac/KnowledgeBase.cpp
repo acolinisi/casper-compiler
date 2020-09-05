@@ -12,7 +12,10 @@
 
 namespace cac {
 
-KnowledgeBase::KnowledgeBase() {
+KnowledgeBase::KnowledgeBase() :
+	// TODO: KnowledgeBase is responsible for figuring out sample count
+	sampleCount(2)
+{
 }
 
 void KnowledgeBase::loadPlatform(const std::string &iniFile) {
@@ -101,6 +104,39 @@ const KnowledgeBase::ParamMap&  KnowledgeBase::getParams(
 		}
 	}
 	assert(!"kernel not in KnowledgeBase");
+}
+
+void KnowledgeBase::drawSamples(const std::string &generator,
+		std::vector<std::string> paramNames)
+{
+	for (int i = 0; i < sampleCount; ++i) {
+		ParamMap params;
+		for (auto &paramName : paramNames) {
+#if 0
+			params[paramName] = std::to_string(1 + rand() % 8); // TODO: <random>
+#else
+			params[paramName] = std::to_string(i + 1);
+#endif
+			std::cout << "gen " << generator << " param " << paramName
+				<< std::endl;
+		}
+		samples[generator].insert(params);
+		std::cout << "gen " << generator << " size "
+			<< samples[generator].size() << std::endl;
+	}
+}
+
+std::set<KnowledgeBase::ParamMap>& KnowledgeBase::getSamples(
+		const std::string &generator) {
+	auto it = samples.find(generator);
+	if (it == samples.end()) {
+		std::ostringstream msg;
+		msg << "kernel '" << generator << "' not in knowledge base";
+		throw std::runtime_error(msg.str());
+	}
+	std::cout << "get gen " << generator << " size "
+		<< it->second.size() << std::endl;
+	return it->second;
 }
 
 } // namespace cac

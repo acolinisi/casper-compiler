@@ -8,6 +8,6 @@ class TaskGraph;
 class Platform;
 
 void emitLLVMIR(cac::TaskGraph &tg, cac::Platform &plat,
-    const std::string &outputFile);
+    bool profilingHarness, const std::string &outputFile);
 
 } // namespace cac

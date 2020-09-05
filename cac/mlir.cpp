@@ -108,9 +108,10 @@ std::unique_ptr<toy::ModuleAST> parseInputFile(llvm::StringRef filename) {
 }
 
 int loadAndProcessMLIR(cac::TaskGraph &tg, cac::Platform &plat,
+    bool profilingHarness,
     mlir::MLIRContext &context, mlir::OwningModuleRef &module) {
 
-  if (int error = buildMLIRFromGraph(tg, plat, context, module))
+  if (int error = buildMLIRFromGraph(tg, plat, profilingHarness, context, module))
     return error;
 
   mlir::PassManager pm(&context);
@@ -245,12 +246,12 @@ void registerDialects() {
 
 namespace cac {
 
-void emitLLVMIR(cac::TaskGraph &tg, cac::Platform &plat,
+void emitLLVMIR(cac::TaskGraph &tg, cac::Platform &plat, bool profilingHarness,
     const std::string &outputFile) {
     registerDialects(); // must happen before constructing contexts
     mlir::MLIRContext context;
     mlir::OwningModuleRef module;
-    if (loadAndProcessMLIR(tg, plat, context, module))
+    if (loadAndProcessMLIR(tg, plat, profilingHarness, context, module))
       throw std::runtime_error("failed to load and process MLIR");
 
 	std::error_code ec;

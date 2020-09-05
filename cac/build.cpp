@@ -21,13 +21,13 @@ namespace {
 
 // Traverse the task graph in depth-first order
 void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
-    cac::Platform &plat, bool printDat)
+    cac::Platform &plat, bool printDat, bool profilingHarness)
 {
   // Constant dat; TODO: support non-constant buffer
 
   for (cac::Task *dep : task.deps) {
     if (!dep->visited)
-      invokeKernels(builder, context, *dep, plat, printDat);
+      invokeKernels(builder, context, *dep, plat, printDat, profilingHarness);
   }
 
   // Invoke the kernel
@@ -53,11 +53,16 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
   // we can't put these actions into a virtual method on the task objects.
   // TODO: switch to polymorphism, while still decoupling using impl ptr?
   switch (task.type) {
-  case cac::Task::Halide:
+  case cac::Task::Halide: {
+      auto profileAttr = IntegerAttr::get(builder.getIntegerType(32),
+	  profilingHarness);
+      NamedAttribute profileNAttr(Identifier::get(StringRef("profile"),
+	    &context), profileAttr);
       builder.create<toy::HalideKernelOp>(builder.getUnknownLoc(),
 	ArrayRef<Type>{}, ValueRange(args),
-	ArrayRef<NamedAttribute>{funcNAttr, variantsNAttr});
+	ArrayRef<NamedAttribute>{funcNAttr, variantsNAttr, profileNAttr});
       break;
+  }
   case cac::Task::C:
       builder.create<toy::KernelOp>(builder.getUnknownLoc(),
 	ArrayRef<Type>{}, ValueRange(args),
@@ -123,6 +128,7 @@ mlir::LLVM::LLVMFuncOp declare_free_obj_func(mlir::LLVM::LLVMDialect *llvmDialec
 namespace cac {
 
 int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
+    bool profilingHarness,
     MLIRContext &context, OwningModuleRef &module)
 {
   module = OwningModuleRef(ModuleOp::create(
@@ -271,7 +277,8 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
   //  std::unique_ptr<Task>& root = *rooti;
   for (std::unique_ptr<cac::Task>& root : tg.tasks) {
     if (!root->visited)
-      invokeKernels(builder, context, *root, plat, tg.datPrintEnabled);
+      invokeKernels(builder, context, *root, plat, tg.datPrintEnabled,
+	  profilingHarness);
   }
 
   builder.create<LLVM::CallOp>(loc, finPyFunc, ValueRange{});

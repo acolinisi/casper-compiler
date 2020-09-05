@@ -37,6 +37,7 @@
 #include "llvm/ADT/Sequence.h"
 
 #include <string>
+#include <iostream> // for debugging only
 
 using namespace mlir;
 
@@ -741,9 +742,109 @@ public:
       opArgVals.push_back(arg);
     }
 
+    IntegerAttr profileAttr = op->getAttrOfType<IntegerAttr>("profile");
+    bool profile = profileAttr ? profileAttr.getInt() : false;
+    std::cout << "profile: " << profile << std::endl;
+
+    if (profile) {
+      //auto llvmIntTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
+      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+      std::string swStartFunc{"_crt_prof_stopwatch_start"};
+      if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStartFunc)) {
+        auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy, {},
+            /*isVarArg*/ false);
+
+        // Insert the function declaration into the body of the parent module.
+        PatternRewriter::InsertionGuard insertGuard(rewriter);
+        rewriter.setInsertionPointToStart(parentModule.getBody());
+        rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
+            swStartFunc, llvmFnType);
+      }
+      LLVM::LLVMFuncOp swStartFuncOp =
+        parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStartFunc);
+      auto swStartCall = rewriter.create<LLVM::CallOp>(loc, swStartFuncOp,
+          ValueRange{});
+    }
+
+#if 0 // a failed alternative attempt at indirecting the kernel call
+      // throught the runtime library, thus keeping all the timing
+      // code in the runtime library. This requires defining an adapter
+      // function for each kernel that is vararg.
+    if (profile) {
+      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+      std::string swStartFunc{"invoke_kernel"}; // see runtime lib
+      if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStartFunc)) {
+        auto llvmKernFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+            {}, /*isVarArg*/ false);
+        auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+            {llvmKernFnType.getPointerTo()},
+            /*isVarArg*/ false);
+
+        // Insert the function declaration into the body of the parent module.
+        PatternRewriter::InsertionGuard insertGuard(rewriter);
+        rewriter.setInsertionPointToStart(parentModule.getBody());
+        rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
+            swStartFunc, llvmFnType);
+      }
+      LLVM::LLVMFuncOp invokeKernFuncOp =
+        parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStartFunc);
+      auto invokeKernCall = rewriter.create<LLVM::CallOp>(loc,
+          invokeKernFuncOp, ValueRange{funcPtr});
+    }
+#endif
+
     auto newOp = rewriter.create<LLVM::CallOp>(op->getLoc(),
       LLVM::LLVMType::getVoidTy(llvmDialect), opArgVals,
       ArrayRef<NamedAttribute>{});
+
+    if (profile) {
+      //auto llvmIntTy = LLVM::LLVMType::getInt32Ty(llvmDialect);
+      auto llvmFloatTy = LLVM::LLVMType::getFloatTy(llvmDialect);
+      std::string swStopFunc{"_crt_prof_stopwatch_stop"};
+      if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStopFunc)) {
+        auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmFloatTy, {},
+            /*isVarArg*/ false);
+
+        // Insert the function declaration into the body of the parent module.
+        PatternRewriter::InsertionGuard insertGuard(rewriter);
+        rewriter.setInsertionPointToStart(parentModule.getBody());
+        rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
+            swStopFunc, llvmFnType);
+      }
+      LLVM::LLVMFuncOp swStopFuncOp =
+        parentModule.lookupSymbol<LLVM::LLVMFuncOp>(swStopFunc);
+      auto swStopCall = rewriter.create<LLVM::CallOp>(loc, swStopFuncOp,
+          ValueRange{});
+
+      Value taskName = allocString(llvmDialect, rewriter, typeConverter, loc,
+          op, "func");
+
+      auto llvmCharTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
+      auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+      auto llvmI32Ty = LLVM::LLVMType::getInt32Ty(llvmDialect);
+      std::string logFunc{"_crt_prof_log_measurement"};
+      if (!parentModule.lookupSymbol<LLVM::LLVMFuncOp>(logFunc)) {
+        auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+            {llvmCharTy.getPointerTo(), llvmI32Ty, llvmFloatTy},
+            /*isVarArg*/ false);
+
+        // Insert the function declaration into the body of the parent module.
+        PatternRewriter::InsertionGuard insertGuard(rewriter);
+        rewriter.setInsertionPointToStart(parentModule.getBody());
+        rewriter.create<LLVM::LLVMFuncOp>(parentModule.getLoc(),
+            logFunc, llvmFnType);
+      }
+      LLVM::LLVMFuncOp logFuncOp =
+        parentModule.lookupSymbol<LLVM::LLVMFuncOp>(logFunc);
+
+      uint32_t variantId = 1; // TODO: need to call each variant
+      Value variantIdVal = rewriter.create<LLVM::ConstantOp>(loc,
+          typeConverter->convertType(rewriter.getI32Type()),
+        rewriter.getIntegerAttr(rewriter.getI32Type(), variantId));
+
+      auto logCall = rewriter.create<LLVM::CallOp>(loc, logFuncOp,
+          ValueRange{taskName, variantIdVal, swStopCall.getResult(0)});
+    }
 
     // Notify the rewriter that this operation has been removed.
     rewriter.eraseOp(op);

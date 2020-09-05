@@ -81,7 +81,7 @@ const CompilerLoggerFactory no_compiler_logger_factory =
     return nullptr;
   };
 
-void compileHalideKernel(const std::string &generator,
+std::string compileHalideKernel(const std::string &generator,
     const std::string &artifact,
     const std::map<std::string, std::string> &params) {
   std::string file_base_name("lib" + artifact);
@@ -111,14 +111,16 @@ void compileHalideKernel(const std::string &generator,
   };
   compile_multitarget(function_name, output_files, targets, module_factory,
       no_compiler_logger_factory);
+  return file_base_name + ".a";
 }
 
-void compileHalideRuntime() {
+std::string compileHalideRuntime() {
   std::string runtime_name("libhalide_runtime");
   std::set<Output> outputs{Output::static_library};
   std::string base_path = compute_base_path(output_dir, runtime_name, "");
   auto output_files = compute_output_files(target, base_path, outputs);
   compile_standalone_runtime(output_files, target);
+  return runtime_name + ".a";
 }
 
 } // namespace anon
@@ -150,14 +152,15 @@ void introspectHalideTasks(cac::TaskGraph &tg) {
 	}
 }
 
-void compileHalideTasks(cac::TaskGraph &tg, cac::Platform &plat,
-		cac::KnowledgeBase &kb) {
+std::vector<std::string> compileHalideTasks(cac::TaskGraph &tg,
+		cac::Platform &plat, cac::KnowledgeBase &kb) {
+	std::vector<std::string> libs;
 	for (auto &task : tg.tasks) {
 		if (task->type == cac::Task::Halide) {
 			cac::HalideTask *hTask = static_cast<cac::HalideTask *>(task.get());
+			const std::string &generator = task->func;
 			// Compile as many variants as there are node types in the platform
 			for (auto &nodeDesc : plat.nodeTypes) {
-				const std::string &generator = task->func;
 				const std::string &artifact =
 					makeArtifactName(generator, nodeDesc);
 
@@ -168,11 +171,49 @@ void compileHalideTasks(cac::TaskGraph &tg, cac::Platform &plat,
 					std::cerr << kv.first << " = " << kv.second << std::endl;
 				}
 
-				compileHalideKernel(generator, artifact, params);
+				const std::string &lib = compileHalideKernel(generator,
+						artifact, params);
+				libs.push_back(lib);
 			}
 		}
 	}
-	compileHalideRuntime();
+	const std::string &rtLib = compileHalideRuntime();
+	libs.push_back(rtLib);
+	return libs;
+}
+
+std::vector<std::string> compileHalideTasksToProfile(cac::TaskGraph &tg,
+		cac::KnowledgeBase &kb) {
+	std::vector<std::string> libs;
+	for (auto &task : tg.tasks) {
+		if (task->type == cac::Task::Halide) {
+			cac::HalideTask *hTask = static_cast<cac::HalideTask *>(task.get());
+			const std::string &generator = task->func;
+
+			// Doing this on-demand here, but we can move this to
+			// happen whenever (after generator introspection).
+			kb.drawSamples(generator, hTask->impl->params);
+
+			auto& samples = kb.getSamples(generator);
+			unsigned i = 0;
+			for (auto &sample : samples) {
+				std::ostringstream artifact;
+				artifact << generator << "_v" << std::to_string(i++);
+
+				std::cerr << "sample params for generator " << generator
+					<< "(artifact " << artifact.str() << ":" << std::endl;
+				for (auto &kv : sample) {
+					std::cerr << kv.first << " = " << kv.second << std::endl;
+				}
+				const std::string &lib = compileHalideKernel(generator,
+						artifact.str(), sample);
+				libs.push_back(lib);
+			}
+		}
+	}
+	const std::string &rtLib = compileHalideRuntime();
+	libs.push_back(rtLib);
+	return libs;
 }
 
 
