@@ -90,9 +90,17 @@ Value allocString(LLVM::LLVMDialect *llvmDialect,
 
 Value createConstInt32(ConversionPatternRewriter &rewriter,
 		TypeConverter *typeConverter, Location loc, int32_t val) {
-	auto ty = typeConverter->convertType(rewriter.getI32Type());
-	auto attr = rewriter.getIntegerAttr(rewriter.getI32Type(), val);
-	return rewriter.create<LLVM::ConstantOp>(loc, ty, attr);
+	auto ty = rewriter.getI32Type();
+	auto loweredTy = typeConverter->convertType(ty);
+	auto attr = rewriter.getIntegerAttr(ty, val);
+	return rewriter.create<LLVM::ConstantOp>(loc, loweredTy, attr);
+}
+Value createConstIndex(ConversionPatternRewriter &rewriter,
+		TypeConverter *typeConverter, Location loc, unsigned val) {
+	auto ty = rewriter.getIndexType();
+	auto loweredTy = typeConverter->convertType(ty);
+	auto attr = rewriter.getIntegerAttr(ty, val);
+	return rewriter.create<LLVM::ConstantOp>(loc, loweredTy, attr);
 }
 
 void declareFunc(ConversionPatternRewriter &rewriter, ModuleOp &mod,
@@ -153,6 +161,61 @@ LLVM::CallOp callCRTGetNodeTypeId(ConversionPatternRewriter &rewriter,
 		return LLVM::LLVMType::getFunctionTy(llvmIntTy, {}, /*isVarArg*/ false);
 	};
 	return callCRT(rewriter, mod, loc, "_crt_prof_get_node_type_id", typeCtor);
+}
+
+
+/// Return a symbol reference to the kernel function, inserting it into the
+/// module if necessary.
+FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
+		ModuleOp module, StringRef name, LLVM::LLVMType llvmFnType) {
+	auto *context = module.getContext();
+	if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
+		// Insert the printf function into the body of the parent module.
+		PatternRewriter::InsertionGuard insertGuard(rewriter);
+		rewriter.setInsertionPointToStart(module.getBody());
+		rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), name, llvmFnType);
+	}
+	return SymbolRefAttr::get(name, context);
+}
+
+// Allocate an indirection jump table: node type id -> kernel function pointer
+// Returns address of the jump table function pointer array.
+Value allocJumpTable(ConversionPatternRewriter &rewriter, ModuleOp &mod,
+		TypeConverter *typeConverter, Location loc,
+		LLVM::LLVMType funcType, ArrayAttr &variantIds,
+		std::function<std::string(unsigned)> indexToFunc) {
+    unsigned numVariants = variantIds.size();
+    Value numVariantsVal = createConstIndex(rewriter, typeConverter, loc,
+			numVariants);
+    Value funcPtrAddr = rewriter.create<LLVM::AllocaOp>(loc,
+        funcType.getPointerTo().getPointerTo(), numVariantsVal,
+        /*alignment=*/0);
+
+    for (int i = 0; i < numVariants; ++i) {
+      unsigned slotIdx = variantIds[i].cast<IntegerAttr>().getInt();
+      StringRef func{indexToFunc(slotIdx)};
+
+      // Get the pointer to the function variant
+      FlatSymbolRefAttr kernRef =
+        getOrInsertKernFunc(rewriter, mod, func, funcType);
+      auto funcAddr = rewriter.create<LLVM::AddressOfOp>(loc,
+          funcType.getPointerTo(), kernRef);
+
+      // Add the function pointer to a slot in the indirection jump table
+      Value slotIdxVal = createConstIndex(rewriter, typeConverter, loc,
+			  slotIdx);
+      auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
+          funcType.getPointerTo(), funcPtrAddr, ValueRange{slotIdxVal});
+      rewriter.create<LLVM::StoreOp>(loc, funcAddr, slotAddr);
+    }
+	return funcPtrAddr;
+}
+
+Value lookupInJumpTable(ConversionPatternRewriter &rewriter, Location loc,
+		LLVM::LLVMType funcType, Value jumpTableAddr, Value index) {
+	auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
+			funcType.getPointerTo(), jumpTableAddr, ValueRange{index});
+	return rewriter.create<LLVM::LoadOp>(loc, slotAddr);
 }
 
 /// Lowers `toy.print` to a loop nest calling `printf` on each of the individual
@@ -742,7 +805,6 @@ public:
 
     ArrayAttr variantsAttr = op->getAttrOfType<ArrayAttr>("variants");
     assert(variantsAttr); // TODO: verify
-    unsigned numVariants = variantsAttr.size();
 
     StringAttr funcAttr = op->getAttrOfType<StringAttr>("func");
     assert(funcAttr); // verified
@@ -750,43 +812,20 @@ public:
 
     LLVM::LLVMType funcType = getKernFuncType(argTypes, llvmDialect);
 
-    // Allocate an indirection jump table: node type id -> function pointer
-    Value numVariantsVal = rewriter.create<LLVM::ConstantOp>(loc,
-        typeConverter->convertType(rewriter.getIndexType()),
-        rewriter.getIntegerAttr(rewriter.getIndexType(), numVariants));
-    Value funcPtrAddr = rewriter.create<LLVM::AllocaOp>(loc,
-        funcType.getPointerTo().getPointerTo(), numVariantsVal,
-        /*alignment=*/0);
-
-    for (int i = 0; i < numVariants; ++i) {
-      unsigned variantId = variantsAttr[i].cast<IntegerAttr>().getInt();
-
-      // TODO: reuse makeVariantNameFunction between hear and build.cpp
-      std::string funcVariantName = funcStr +
-        "_v" + std::to_string(variantId);
-      StringRef func{funcVariantName};
-
-      // Get the pointer to the function variant
-      FlatSymbolRefAttr kernRef =
-        getOrInsertKernFunc(rewriter, parentModule, func, funcType);
-      auto funcAddr = rewriter.create<LLVM::AddressOfOp>(loc,
-          funcType.getPointerTo(), kernRef);
-
-      // Add the function pointer to a slot in the indirection jump table
-      Value variantIdVal = rewriter.create<LLVM::ConstantOp>(loc,
-          typeConverter->convertType(rewriter.getIndexType()),
-          rewriter.getIntegerAttr(rewriter.getIndexType(), variantId));
-      auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
-          funcType.getPointerTo(), funcPtrAddr, ValueRange{variantIdVal});
-      rewriter.create<LLVM::StoreOp>(loc, funcAddr, slotAddr);
-    }
+	auto variantIdToKernFuncName = [&funcStr](unsigned variantId) {
+		// TODO: reuse makeVariantNameFunction between here and build.cpp
+		std::ostringstream funcName;
+		funcName << funcStr << "_v" << variantId;
+		return funcName.str();
+	};
+	Value jumpTable = allocJumpTable(rewriter, parentModule, typeConverter, loc,
+			funcType, variantsAttr, variantIdToKernFuncName);
 
     auto nodeId = callCRTGetNodeTypeId(rewriter, parentModule, llvmDialect,
 			loc).getResult(0);
 
-    auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
-        funcType.getPointerTo(), funcPtrAddr, ValueRange{nodeId});
-    Value funcPtr = rewriter.create<LLVM::LoadOp>(loc, slotAddr);
+    Value funcPtr = lookupInJumpTable(rewriter, loc, funcType,
+			jumpTable, nodeId);
 
     SmallVector<Value, 8> opArgVals{funcPtr};
     for (auto &arg : argVals) {
@@ -838,20 +877,6 @@ private:
 
       return LLVM::LLVMType::getFunctionTy(llvmVoidTy, args,
           /*isVarArg*/ false);
-  }
-
-  /// Return a symbol reference to the kernel function, inserting it into the
-  /// module if necessary.
-  static FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
-      ModuleOp module, StringRef name, LLVM::LLVMType llvmFnType) {
-    auto *context = module.getContext();
-    if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
-      // Insert the printf function into the body of the parent module.
-      PatternRewriter::InsertionGuard insertGuard(rewriter);
-      rewriter.setInsertionPointToStart(module.getBody());
-      rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), name, llvmFnType);
-    }
-    return SymbolRefAttr::get(name, context);
   }
 };
 } // end anonymous namespace
