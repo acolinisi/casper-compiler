@@ -179,44 +179,48 @@ FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
 }
 
 // Allocate an indirection jump table: node type id -> kernel function pointer
-// Returns address of the jump table function pointer array.
-Value allocJumpTable(ConversionPatternRewriter &rewriter, ModuleOp &mod,
+class JumpTable {
+public:
+	JumpTable(ConversionPatternRewriter &rewriter, ModuleOp &mod,
 		TypeConverter *typeConverter, Location loc,
 		LLVM::LLVMType funcType, ArrayAttr &variantIds,
-		std::function<std::string(unsigned)> indexToFunc) {
-    unsigned numVariants = variantIds.size();
-    Value numVariantsVal = createConstIndex(rewriter, typeConverter, loc,
-			numVariants);
-    Value funcPtrAddr = rewriter.create<LLVM::AllocaOp>(loc,
-        funcType.getPointerTo().getPointerTo(), numVariantsVal,
-        /*alignment=*/0);
+		std::function<std::string(unsigned)> indexToFunc)
+	: rewriter(rewriter), funcType(funcType) {
+		unsigned numVariants = variantIds.size();
+		Value numVariantsVal = createConstIndex(rewriter, typeConverter, loc,
+				numVariants);
+		tableAddr = rewriter.create<LLVM::AllocaOp>(loc,
+				funcType.getPointerTo().getPointerTo(), numVariantsVal,
+				/*alignment=*/0);
 
-    for (int i = 0; i < numVariants; ++i) {
-      unsigned slotIdx = variantIds[i].cast<IntegerAttr>().getInt();
-      StringRef func{indexToFunc(slotIdx)};
+		for (int i = 0; i < numVariants; ++i) {
+			unsigned slotIdx = variantIds[i].cast<IntegerAttr>().getInt();
+			StringRef func{indexToFunc(slotIdx)};
 
-      // Get the pointer to the function variant
-      FlatSymbolRefAttr kernRef =
-        getOrInsertKernFunc(rewriter, mod, func, funcType);
-      auto funcAddr = rewriter.create<LLVM::AddressOfOp>(loc,
-          funcType.getPointerTo(), kernRef);
+			// Get the pointer to the function variant
+			FlatSymbolRefAttr kernRef =
+				getOrInsertKernFunc(rewriter, mod, func, funcType);
+			auto funcAddr = rewriter.create<LLVM::AddressOfOp>(loc,
+					funcType.getPointerTo(), kernRef);
 
-      // Add the function pointer to a slot in the indirection jump table
-      Value slotIdxVal = createConstIndex(rewriter, typeConverter, loc,
-			  slotIdx);
-      auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
-          funcType.getPointerTo(), funcPtrAddr, ValueRange{slotIdxVal});
-      rewriter.create<LLVM::StoreOp>(loc, funcAddr, slotAddr);
-    }
-	return funcPtrAddr;
-}
-
-Value lookupInJumpTable(ConversionPatternRewriter &rewriter, Location loc,
-		LLVM::LLVMType funcType, Value jumpTableAddr, Value index) {
-	auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
-			funcType.getPointerTo(), jumpTableAddr, ValueRange{index});
-	return rewriter.create<LLVM::LoadOp>(loc, slotAddr);
-}
+			// Add the function pointer to a slot in the indirection jump table
+			Value slotIdxVal = createConstIndex(rewriter, typeConverter, loc,
+					slotIdx);
+			auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
+					funcType.getPointerTo(), tableAddr, ValueRange{slotIdxVal});
+			rewriter.create<LLVM::StoreOp>(loc, funcAddr, slotAddr);
+		}
+	}
+	Value lookup(Value index, Location loc) {
+		auto slotAddr = rewriter.create<LLVM::GEPOp>(loc,
+				funcType.getPointerTo(), tableAddr, ValueRange{index});
+		return rewriter.create<LLVM::LoadOp>(loc, slotAddr);
+	}
+private:
+	ConversionPatternRewriter &rewriter;
+	LLVM::LLVMType funcType;
+	Value tableAddr;
+};
 
 /// Lowers `toy.print` to a loop nest calling `printf` on each of the individual
 /// elements of the array.
@@ -818,14 +822,13 @@ public:
 		funcName << funcStr << "_v" << variantId;
 		return funcName.str();
 	};
-	Value jumpTable = allocJumpTable(rewriter, parentModule, typeConverter, loc,
+	JumpTable kernVariantsTable(rewriter, parentModule, typeConverter, loc,
 			funcType, variantsAttr, variantIdToKernFuncName);
 
     auto nodeId = callCRTGetNodeTypeId(rewriter, parentModule, llvmDialect,
 			loc).getResult(0);
 
-    Value funcPtr = lookupInJumpTable(rewriter, loc, funcType,
-			jumpTable, nodeId);
+    Value funcPtr = kernVariantsTable.lookup(nodeId, loc);
 
     SmallVector<Value, 8> opArgVals{funcPtr};
     for (auto &arg : argVals) {
