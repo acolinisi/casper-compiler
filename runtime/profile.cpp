@@ -1,5 +1,8 @@
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <iostream>
 
 #include "halide_benchmark.h"
 
@@ -13,11 +16,29 @@ float current_time() {
 		/ 1e3;
 }
 
+std::ofstream measurements_file;
 float start_time;
 
 }
 
 extern "C" {
+
+void _crt_prof_init(const char *measurements_filename) {
+	std::cout << "saving profiling measurements to: " << measurements_filename
+		<< std::endl;
+	measurements_file.open(measurements_filename);
+	if (!measurements_file.is_open()) {
+		std::cerr << "failed to open measurements output file "
+			<< "'" << measurements_filename << "':"
+			<< strerror(errno) << std::endl;
+		exit(1);
+	}
+	measurements_file << "task,variant,elapsed_s" << std::endl;
+}
+
+void _crt_prof_finalize() {
+	measurements_file.close();
+}
 
 void _crt_prof_stopwatch_start() {
 	start_time = current_time();
@@ -32,7 +53,8 @@ float _crt_prof_stopwatch_stop() {
 
 void _crt_prof_log_measurement(const char *task, uint32_t variantId,
 		float elapsed) {
-	printf("task: %s, variant: %u, elapsed: %f\n", task, variantId, elapsed);
+	measurements_file << task << "," << variantId << "," << elapsed
+		<< std::endl;
 }
 
 // To do this, would need to generate an adapter for kernel function

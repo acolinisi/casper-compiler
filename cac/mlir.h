@@ -7,7 +7,8 @@ namespace cac {
 class TaskGraph;
 class Platform;
 
-void emitLLVMIR(cac::TaskGraph &tg, cac::Platform &plat,
-    bool profilingHarness, const std::string &outputFile);
+void emitLLVMIR(const std::string &outputFile, cac::TaskGraph &tg,
+        cac::Platform &plat,
+        bool profilingHarness, const std::string &profilingMeasurementsFile);
 
 } // namespace cac

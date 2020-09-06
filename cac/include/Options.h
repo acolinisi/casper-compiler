@@ -18,6 +18,7 @@ public:
 		std::string platformFile;
 
 		bool profilingHarness;
+		std::string profilingMeasurementsFile;
 
 		// TODO: These will change eventually: will be generated during the
 		// compilation flow, and models are per task, not per app.

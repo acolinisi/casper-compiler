@@ -42,7 +42,9 @@ function(casper_add_exec target meta_prog)
 	## Run the meta-program to generate profiling harness
 	set(prof_harness ${target}_prof)
 	add_custom_command(OUTPUT ${prof_harness}.ll ${prof_harness}.args
-		COMMAND ${meta_prog} --profiling-harness -o ${prof_harness}.ll
+		COMMAND ${meta_prog} --profiling-harness
+			--profiling-measurements ${target}.prof.csv
+			-o ${prof_harness}.ll
 			--build-args ${prof_harness}.args
 			${META_PROG_ARGS}
 		DEPENDS ${meta_prog} ${META_PROG_DEPS})

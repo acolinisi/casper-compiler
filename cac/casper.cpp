@@ -59,7 +59,8 @@ void compile(TaskGraph &tg, const Options &opts) {
 	}
 	if (opts.buildArgsFile.size())
 		composeArgsFile(tg, db, halideLibs, opts.buildArgsFile);
-	cac::emitLLVMIR(tg, plat, opts.profilingHarness, opts.llOutputFile);
+	cac::emitLLVMIR(opts.llOutputFile, tg, plat,
+			opts.profilingHarness, opts.profilingMeasurementsFile);
 }
 
 int tryCompile(TaskGraph &tg, const Options &opts) {

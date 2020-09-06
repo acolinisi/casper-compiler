@@ -45,14 +45,17 @@ Options::Impl::Impl(Options &opts) :
 {
 	desc.add_options()
 		("help,h", "list supported command line options")
-		("profiling-harness", po::bool_switch(&opts.profilingHarness),
-		 "generate profiling harness instead of main app")
 		("output,o", po::value<std::string>(&opts.llOutputFile)->required(),
 		 "name of output file with LLVM IR (.ll)")
 		("build-args", po::value<std::string>(&opts.buildArgsFile),
 		 "name of output file build arguments for CMake")
 		("platform,p", po::value<std::string>(&opts.platformFile)->required(),
 		 "name of input file with target platform definition")
+		("profiling-harness", po::bool_switch(&opts.profilingHarness),
+		 "generate profiling harness instead of main app")
+		("profiling-measurements",
+		 po::value<std::string>(&opts.profilingMeasurementsFile),
+		 "name of output file where to save profiling data")
 
 		// TODO: These will change eventually: will be generated during the
 		// compilation flow, and models are per task, not per app.
@@ -68,6 +71,16 @@ Options::Impl::Impl(Options &opts) :
 void Options::Impl::parse(int argc, char **argv) {
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm);
+
+	if (vm.count("profiling-harness")) {
+		if (!vm.count("profiling-measurements") ||
+				vm["profiling-measurements"].as<std::string>().size() == 0) {
+			std::ostringstream msg;
+			msg << "invalid arguments: --profiling-measurements required "
+				<< "when --profiling-harness is set";
+			throw std::runtime_error(msg.str());
+		}
+	}
 }
 
 } // namespace cac

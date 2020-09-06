@@ -95,8 +95,9 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
   task.visited = true;
 }
 
-mlir::LLVM::LLVMFuncOp declare_void_func(mlir::LLVM::LLVMDialect *llvmDialect,
-    OpBuilder &builder, OwningModuleRef &module, StringRef func)
+mlir::LLVM::LLVMFuncOp declareVoidFunc(OpBuilder &builder,
+    OwningModuleRef &module, mlir::LLVM::LLVMDialect *llvmDialect,
+    StringRef func)
 {
   auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
   auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy, {},
@@ -104,8 +105,9 @@ mlir::LLVM::LLVMFuncOp declare_void_func(mlir::LLVM::LLVMDialect *llvmDialect,
   return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
       llvmFnType);
 }
-mlir::LLVM::LLVMFuncOp declare_alloc_obj_func(mlir::LLVM::LLVMDialect *llvmDialect,
-    OpBuilder &builder, OwningModuleRef &module, StringRef func)
+mlir::LLVM::LLVMFuncOp declareAllocObjFunc(OpBuilder &builder,
+    OwningModuleRef &module, mlir::LLVM::LLVMDialect *llvmDialect,
+    StringRef func)
 {
   auto llvmVoidPtrTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
   auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidPtrTy, {},
@@ -113,8 +115,9 @@ mlir::LLVM::LLVMFuncOp declare_alloc_obj_func(mlir::LLVM::LLVMDialect *llvmDiale
   return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
       llvmFnType);
 }
-mlir::LLVM::LLVMFuncOp declare_free_obj_func(mlir::LLVM::LLVMDialect *llvmDialect,
-    OpBuilder &builder, OwningModuleRef &module, StringRef func)
+mlir::LLVM::LLVMFuncOp declareFreeObjFunc(OpBuilder &builder,
+    OwningModuleRef &module, mlir::LLVM::LLVMDialect *llvmDialect,
+    StringRef func)
 {
   auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
   auto llvmVoidPtrTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
@@ -124,13 +127,24 @@ mlir::LLVM::LLVMFuncOp declare_free_obj_func(mlir::LLVM::LLVMDialect *llvmDialec
       llvmFnType);
 }
 
+mlir::LLVM::LLVMFuncOp declareInitProfilingFunc(OpBuilder &builder,
+    OwningModuleRef &module, mlir::LLVM::LLVMDialect *llvmDialect)
+{
+  auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+  auto llvmCharPtrTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
+  auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+      {llvmCharPtrTy}, /*isVarArg*/ false);
+  return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), "_crt_prof_init",
+      llvmFnType);
+}
+
 } // anon namespace
 
 namespace cac {
 
-int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
-    bool profilingHarness,
-    MLIRContext &context, OwningModuleRef &module)
+int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
+    cac::Platform &plat, MLIRContext &context,
+    bool profilingHarness, const std::string &profilingMeasurementsFile)
 {
   module = OwningModuleRef(ModuleOp::create(
         UnknownLoc::get(&context)));
@@ -140,19 +154,21 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
   auto llvmDialect = context.getRegisteredDialect<LLVM::LLVMDialect>();
 
   // Names are contract with Casper runtime
-  const char *INIT_PY_FUNC = "init_python";
-  const char *FIN_PY_FUNC = "finalize_python";
-  const char *PY_ALLOC_OBJ_FUNC = "py_alloc_obj";
-  const char *PY_FREE_OBJ_FUNC = "py_free_obj";
+  auto initPyFunc = declareVoidFunc(builder, module, llvmDialect,
+      "init_python");
+  auto finPyFunc = declareVoidFunc(builder, module, llvmDialect,
+      "finalize_python");
+  auto pyAllocObjFunc = declareAllocObjFunc(builder, module, llvmDialect,
+      "py_alloc_obj");
+  auto pyFreeObjFunc = declareFreeObjFunc(builder, module, llvmDialect,
+      "py_free_obj");
 
-  auto initPyFunc = declare_void_func(llvmDialect, builder, module,
-      INIT_PY_FUNC);
-  auto finPyFunc = declare_void_func(llvmDialect, builder, module,
-      FIN_PY_FUNC);
-  auto pyAllocObjFunc = declare_alloc_obj_func(llvmDialect, builder, module,
-      PY_ALLOC_OBJ_FUNC);
-  auto pyFreeObjFunc = declare_free_obj_func(llvmDialect, builder, module,
-      PY_FREE_OBJ_FUNC);
+  LLVM::LLVMFuncOp initProfFunc, finProfFunc;
+  if (profilingHarness) {
+    initProfFunc = declareInitProfilingFunc(builder, module, llvmDialect);
+    finProfFunc = declareVoidFunc(builder, module, llvmDialect,
+	"_crt_prof_finalize");
+  }
 
   // create main() function
   auto mainTy = FunctionType::get({}, {builder.getI32Type()}, &context);
@@ -163,6 +179,13 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
   builder.setInsertionPointToStart(&entryBlock);
 
   builder.create<LLVM::CallOp>(loc, initPyFunc, ValueRange{});
+
+  if (profilingHarness) {
+    assert(profilingMeasurementsFile.size());
+    mlir::Value profMeasFile = toy::allocString(builder, llvmDialect, loc,
+	profilingMeasurementsFile);
+    builder.create<LLVM::CallOp>(loc, initProfFunc, ValueRange{profMeasFile});
+  }
 
   // For now, we pre-allocate all data buffers, at the beginning of main()
   // and deallocate them at the end (we don't track lifetime of buffers).
@@ -280,6 +303,10 @@ int buildMLIRFromGraph(cac::TaskGraph &tg, cac::Platform &plat,
     if (!root->visited)
       invokeKernels(builder, context, *root, plat, tg.datPrintEnabled,
 	  profilingHarness);
+  }
+
+  if (profilingHarness) {
+    builder.create<LLVM::CallOp>(loc, finProfFunc, ValueRange{});
   }
 
   builder.create<LLVM::CallOp>(loc, finPyFunc, ValueRange{});
