@@ -9,7 +9,7 @@ function(casper_add_exec target meta_prog)
 	cmake_parse_arguments(FARG
 		""
 		"BUILD_DIR;PLATFORM;MODEL;MODEL_CP;CANDIDATES"
-		"SOURCES;C_KERNEL_SOURCES"
+		"SOURCES;C_KERNEL_SOURCES;TRAIN_ARGS"
 		${ARGN})
 
 	if (NOT ${FARG_BUILD_DIR})
@@ -83,11 +83,40 @@ function(casper_add_exec target meta_prog)
 		COMMAND ${CMAKE_COMMAND}
 			--build "${CMAKE_CURRENT_BINARY_DIR}/${FARG_BUILD_DIR}"
 		DEPENDS ${prof_harness}.ll)
-	add_custom_target(${target} ALL DEPENDS
-		${CMAKE_CURRENT_BINARY_DIR}/${FARG_BUILD_DIR}/${prof_harness})
-		#${CMAKE_CURRENT_BINARY_DIR}/${FARG_BUILD_DIR}/${target})
+
+	add_custom_target(${target} ALL
+		DEPENDS ${FARG_BUILD_DIR}/${prof_harness})
+		#${FARG_BUILD_DIR}/${target})
 	set_target_properties(${target} PROPERTIES
 		ADDITIONAL_CLEAN_FILES ${FARG_BUILD_DIR})
+
+	add_custom_command(OUTPUT ${target}.prof.csv
+		COMMAND ${FARG_BUILD_DIR}/${prof_harness}
+		DEPENDS ${FARG_BUILD_DIR}/${prof_harness})
+	add_custom_target(profile DEPENDS ${target}.prof.csv)
+
+	# TODO: path to casper's python module (install the module in
+	# site-packages)
+	set(CASPER_AUTOTUNER_PATH
+		${CMAKE_CURRENT_BINARY_DIR}/../../../autotuner)
+
+	# Train the model using the profiling measurements
+	find_package(Python REQUIRED COMPONENTS Interpreter)
+	add_custom_command(OUTPUT ${target}.models
+		COMMAND ${Python_EXECUTABLE}
+			${CASPER_AUTOTUNER_PATH}/train.py ${FARG_TRAIN_ARGS}
+				${target}.prof.csv ${target}.models
+		DEPENDS ${target}.prof.csv)
+	add_custom_target(train DEPENDS ${target}.models)
+
+	### Run the meta-program to generate main application binary
+	#add_custom_command(OUTPUT ${target}.ll ${target}.args
+	#	COMMAND ${meta_prog} -o ${target}.ll
+	#		--build-args ${target}.args
+	#		--models
+	#		${META_PROG_ARGS}
+	#	DEPENDS ${meta_prog} ${META_PROG_DEPS} )
+
 endfunction()
 
 # NOTE: This must be called from a separate nested invocation of CMake,
