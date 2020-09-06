@@ -372,7 +372,7 @@ private:
 class PyKernelOpLowering : public ConversionPattern {
 private:
   // Launcher function name is a contract with Casper runtime
-  static constexpr char* LAUNCH_PY_FUNC = "launch_python";
+  static constexpr char* LAUNCH_PY_FUNC = "_crt_py_launch";
 
 public:
   explicit PyKernelOpLowering(TypeConverter &typeConverter,

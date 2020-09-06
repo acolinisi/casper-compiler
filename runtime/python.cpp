@@ -44,7 +44,7 @@ extern "C" {
 
 static wchar_t *program;
 
-void init_python()
+void _crt_py_init()
 {
 	// TODO: look into what the constructed path is
 	// TODO: doesn't seem to make any difference, investigate
@@ -83,7 +83,7 @@ void init_python()
 #endif
 }
 
-void finalize_python()
+void _crt_py_finalize()
 {
 	int rc = Py_FinalizeEx();
 	if (rc < 0) {
@@ -95,13 +95,13 @@ void finalize_python()
 }
 
 // TODO: can builder access PyObject* type somhow?
-void *py_alloc_obj()
+void *_crt_py_alloc_obj()
 {
 	return Py_BuildValue("{}");
 }
 
 // TODO: can builder access PyObject* type somhow?
-void py_free_obj(void *obj)
+void _crt_py_free_obj(void *obj)
 {
 	PyObject *pyObj = static_cast<PyObject *>(obj);
 	return Py_DECREF(pyObj);
@@ -109,7 +109,7 @@ void py_free_obj(void *obj)
 
 // TODO: let py_func be optional
 // Borrows reference to each element of args[].
-int launch_python(const char *py_module, const char *py_func,
+int _crt_py_launch(const char *py_module, const char *py_func,
 		size_t num_args, void *args[num_args])
 {
 	printf("py_module: %s py_func: %s\n", py_module, py_func);

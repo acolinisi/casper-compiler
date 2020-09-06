@@ -155,13 +155,13 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
 
   // Names are contract with Casper runtime
   auto initPyFunc = declareVoidFunc(builder, module, llvmDialect,
-      "init_python");
+      "_crt_py_init");
   auto finPyFunc = declareVoidFunc(builder, module, llvmDialect,
-      "finalize_python");
+      "_crt_py_finalize");
   auto pyAllocObjFunc = declareAllocObjFunc(builder, module, llvmDialect,
-      "py_alloc_obj");
+      "_crt_py_alloc_obj");
   auto pyFreeObjFunc = declareFreeObjFunc(builder, module, llvmDialect,
-      "py_free_obj");
+      "_crt_py_free_obj");
 
   LLVM::LLVMFuncOp initProfFunc, finProfFunc;
   if (profilingHarness) {
