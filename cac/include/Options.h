@@ -11,7 +11,7 @@ public:
 		Options();
 		~Options();
 		void parse(int argc, char **argv);
-		int tryParse(int argc, char **argv);
+		void parseOrExit(int argc, char **argv);
 public:
 		std::string llOutputFile;
 		std::string buildArgsFile;

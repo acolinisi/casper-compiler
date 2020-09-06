@@ -6,7 +6,7 @@ using namespace cac;
 
 int main(int argc, char **argv) {
 	Options opts; // metaprogram can add custom options
-	opts.tryParse(argc, argv);
+	opts.parseOrExit(argc, argv);
 
 	TaskGraph tg("blur"); // must match target name in CMake script
 

@@ -2,6 +2,7 @@
 
 #include <boost/program_options.hpp>
 #include <iostream>
+#include <cstdlib>
 
 namespace po = boost::program_options;
 
@@ -28,15 +29,14 @@ void Options::parse(int argc, char **argv) {
 	impl->parse(argc, argv);
 }
 
-int Options::tryParse(int argc, char **argv) {
+void Options::parseOrExit(int argc, char **argv) {
 	try {
 		impl->parse(argc, argv);
 	} catch (std::exception &exc) {
 		std::cerr << "ERROR: failed to parse command line arguments: "
 			<< exc.what() << std::endl;
-		return 1;
+		exit(1);
 	}
-	return 0;
 }
 
 Options::Impl::Impl(Options &opts) :
