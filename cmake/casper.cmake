@@ -10,7 +10,7 @@ set(CASPER_COMPILER_LIB cac)
 function(casper_add_exec target meta_prog)
 	cmake_parse_arguments(FARG
 		""
-		"PLATFORM;INPUT_DESC;CANDIDATES"
+		"PLATFORM;INPUT_DESC;CANDIDATES;TUNED_PARAMS"
 		"SOURCES;C_KERNEL_SOURCES;TRAIN_ARGS"
 		${ARGN})
 
@@ -18,6 +18,7 @@ function(casper_add_exec target meta_prog)
 		${FARG_PLATFORM}
 		${FARG_INPUT_DESC}
 		${FARG_CANDIDATES}
+		${FARG_TUNED_PARAMS}
 	)
 	foreach(spec_file ${SPEC_FILES})
 		configure_file(${spec_file} ${spec_file} COPYONLY)
@@ -47,57 +48,58 @@ function(casper_add_exec target meta_prog)
 	)
 
 	## Run the meta-program to generate profiling harness
-	set(prof_harness ${target}_prof)
-	add_custom_command(
-		OUTPUT
-			${prof_harness}.ll
-			${prof_harness}.args
-			${target}.samples.csv
-		COMMAND ${meta_prog} --profiling-harness
-			--profiling-samples ${target}.samples.csv
-			--profiling-measurements ${target}.meas.csv
-			-o ${prof_harness}.ll
-			--build-args ${prof_harness}.args
-			${META_PROG_ARGS}
-		DEPENDS ${meta_prog} ${META_PROG_DEPS})
+	#set(prof_harness ${target}_prof)
+	#add_custom_command(
+	#	OUTPUT
+	#		${prof_harness}.ll
+	#		${prof_harness}.args
+	#		${target}.samples.csv
+	#	COMMAND ${meta_prog} --profiling-harness
+	#		--profiling-samples ${target}.samples.csv
+	#		--profiling-measurements ${target}.meas.csv
+	#		-o ${prof_harness}.ll
+	#		--build-args ${prof_harness}.args
+	#		${META_PROG_ARGS}
+	#	DEPENDS ${meta_prog} ${META_PROG_DEPS})
 
-	create_nested_proj(${prof_harness} PROFILING_HARNESS ${META_PROG_OPTS})
-	build_nested_proj(${prof_harness} PROF_HARNESS_BUILD_DIR)
+	#create_nested_proj(${prof_harness} PROFILING_HARNESS ${META_PROG_OPTS})
+	#build_nested_proj(${prof_harness} PROF_HARNESS_BUILD_DIR)
 
-	add_custom_target(${target}.harness
-		DEPENDS ${PROF_HARNESS_BUILD_DIR}/${prof_harness})
+	#add_custom_target(${target}.harness
+	#	DEPENDS ${PROF_HARNESS_BUILD_DIR}/${prof_harness})
 
-	add_custom_command(OUTPUT ${target}.meas.csv
-		COMMAND ${PROF_HARNESS_BUILD_DIR}/${prof_harness}
-		DEPENDS ${PROF_HARNESS_BUILD_DIR}/${prof_harness})
-	add_custom_target(${target}.profile DEPENDS ${target}.meas.csv)
+	#add_custom_command(OUTPUT ${target}.meas.csv
+	#	COMMAND ${PROF_HARNESS_BUILD_DIR}/${prof_harness}
+	#	DEPENDS ${PROF_HARNESS_BUILD_DIR}/${prof_harness})
+	#add_custom_target(${target}.profile DEPENDS ${target}.meas.csv)
 
-	# TODO: path to casper's python module (install the module in
-	# site-packages)
-	set(CASPER_AUTOTUNER_PATH
-		${CMAKE_CURRENT_BINARY_DIR}/../../../autotuner)
+	## TODO: path to casper's python module (install the module in
+	## site-packages)
+	#set(CASPER_AUTOTUNER_PATH
+	#	${CMAKE_CURRENT_BINARY_DIR}/../../../autotuner)
 
-	# Train the model using the profiling measurements
-	find_package(Python REQUIRED COMPONENTS Interpreter)
-	# Actual outputs are all contents of ${target}.models/ dir
-	add_custom_command(OUTPUT ${target}.models/timestamp
-		COMMAND ${Python_EXECUTABLE}
-			${CASPER_AUTOTUNER_PATH}/train.py ${FARG_TRAIN_ARGS}
-				${target}.samples.csv ${target}.meas.csv
-				${target}.models
-		DEPENDS ${target}.meas.csv ${target}.samples.csv)
-	add_custom_target(${target}.train DEPENDS ${target}.models/timestamp)
+	## Train the model using the profiling measurements
+	#find_package(Python REQUIRED COMPONENTS Interpreter)
+	## Actual outputs are all contents of ${target}.models/ dir
+	#add_custom_command(OUTPUT ${target}.models/timestamp
+	#	COMMAND ${Python_EXECUTABLE}
+	#		${CASPER_AUTOTUNER_PATH}/train.py ${FARG_TRAIN_ARGS}
+	#			${target}.samples.csv ${target}.meas.csv
+	#			${target}.models
+	#	DEPENDS ${target}.meas.csv ${target}.samples.csv)
+	#add_custom_target(${target}.train DEPENDS ${target}.models/timestamp)
 
 	## Run the meta-program to generate main application binary
 	add_custom_command(OUTPUT ${target}.ll ${target}.args
 		COMMAND ${meta_prog} -o ${target}.ll
 			--build-args ${target}.args
-			--models ${target}.models
-			--input ${FARG_INPUT_DESC}
+			#--models ${target}.models
+			#--input ${FARG_INPUT_DESC}
+			--tuned-params ${FARG_TUNED_PARAMS}
 			${META_PROG_ARGS}
 		# Actual deps are all contents of ${target}.models/ dir
-		DEPENDS ${meta_prog} ${META_PROG_DEPS}
-			${target}.models/timestamp)
+		DEPENDS ${meta_prog} ${META_PROG_DEPS})
+			#${target}.models/timestamp)
 	add_custom_target(${target}.compile DEPENDS ${target}.ll)
 
 	create_nested_proj(${target} APP ${META_PROG_OPTS})

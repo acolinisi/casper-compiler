@@ -23,6 +23,8 @@ public:
 		std::string profilingMeasurementsFile;
 		std::string profilingSamplesFile;
 
+		std::string tunedParamsFile;
+
 		// TODO: These will change eventually: will be generated during the
 		// compilation flow, and models are per task, not per app.
 		std::string modelFile;

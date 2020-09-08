@@ -31,6 +31,7 @@ namespace cac {
 				std::vector<std::string> paramNames,
 				unsigned variantId);
 		std::set<ParamMap> &getSamples(const std::string &generator);
+		void loadParams(const std::string &iniFilename);
 	public:
 		// kernel name -> node type id -> param -> value
 		DB db;

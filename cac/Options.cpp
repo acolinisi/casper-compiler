@@ -85,6 +85,9 @@ Options::Impl::Impl(Options &opts) :
 		("models", po::value<std::string>(&opts.modelsDir),
 		 "name of input directory with trained performance models")
 
+		("tuned-params", po::value<std::string>(&opts.tunedParamsFile),
+		 "name of input file with tuned parameter choices for each variant of each task (INI)")
+
 		// TODO: These will change eventually: will be generated during the
 		// compilation flow, and models are per task, not per app.
 		("candidates", po::value<std::string>(&opts.candidatesFile)->required(),
@@ -100,8 +103,10 @@ void Options::Impl::parse(int argc, char **argv) {
 		requireStrArg("profiling-measurements");
 		requireStrArg("profiling-samples");
 	} else { // not profiling-harness
+#if 0
 		requireStrArg("models");
 		requireStrArg("input");
+#endif
 	}
 }
 

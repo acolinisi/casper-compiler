@@ -13,6 +13,7 @@ casper_add_exec(blur blur.meta
   C_KERNEL_SOURCES kern.c
   PLATFORM platform.ini
   INPUT_DESC input.ini
+  TUNED_PARAMS tuned-params.ini
 
   TRAIN_ARGS
     --test-set-fraction=0.25

@@ -56,9 +56,13 @@ void compile(TaskGraph &tg, const Options &opts) {
 	std::vector<std::string> halideLibs;
 	if (!opts.profilingHarness) {
 
+#if 0
 		InputDesc inputDesc(opts.inputDescFile);
 
 		cac::tune(tg, db, inputDesc, opts.modelsDir, opts.candidatesFile);
+#else
+		db.loadParams(opts.tunedParamsFile);
+#endif
 		halideLibs = cac::compileHalideTasks(tg, plat, db);
 
 		for (auto &nodeDesc : plat.nodeTypes) {

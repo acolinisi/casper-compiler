@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <string.h>
 
@@ -89,6 +90,20 @@ std::vector<vertex_descriptor_t> KnowledgeBase::getNodeTypeVertices() {
 			vertices.push_back(*it);
 	}
 	return vertices;
+}
+
+void KnowledgeBase::loadParams(const std::string &iniFilename)
+{
+	auto dict = parseINI(iniFilename);
+	for (const auto &sectPair : dict) {
+		std::string taskAndVariant = sectPair.first;
+		auto &params = sectPair.second;
+		std::string task;
+		unsigned variantId;
+		std::istringstream tav(taskAndVariant);
+		tav >> task >> variantId;
+		db[task][variantId] = params;
+	}
 }
 
 void KnowledgeBase::setParams(const std::string &kernelName,
