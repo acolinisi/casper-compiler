@@ -9,11 +9,10 @@
 namespace {
 
 // TODO: is this efficient?
-float current_time() {
+float current_time_s() {
 	static auto start_time = Halide::Tools::benchmark_now().time_since_epoch();
 	auto now = Halide::Tools::benchmark_now().time_since_epoch() - start_time;
-	return std::chrono::duration_cast<std::chrono::microseconds>(now).count()
-		/ 1e3;
+	return (float)std::chrono::duration_cast<std::chrono::microseconds>(now).count() / 1e6;
 }
 
 std::ofstream measurements_file;
@@ -41,12 +40,12 @@ void _crt_prof_finalize() {
 }
 
 void _crt_prof_stopwatch_start() {
-	start_time = current_time();
+	start_time = current_time_s();
 	printf("stopwatch start: %f\n", start_time);
 }
 
 float _crt_prof_stopwatch_stop() {
-	float end_time = current_time();
+	float end_time = current_time_s();
 	printf("stopwatch stop: start %f end %f\n", start_time, end_time);
 	return end_time - start_time;
 }
