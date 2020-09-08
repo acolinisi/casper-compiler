@@ -809,18 +809,18 @@ public:
       LLVM::LLVMType::getVoidTy(llvmDialect), opArgVals,
       ArrayRef<NamedAttribute>{});
 
-	if (profile) {
-		auto swStopCall = callCRTStopWatchStop(rewriter, parentModule,
-				llvmDialect, loc);
-		Value elapsed = swStopCall.getResult(0);
-		Value taskName = toy::allocString(rewriter, llvmDialect,
-                    loc, op, "func");
-		// TODO: need to call each variant
-		Value variantId = createConstInt32(rewriter, typeConverter, loc, 1);
+    if (profile) {
+      auto swStopCall = callCRTStopWatchStop(rewriter, parentModule,
+          llvmDialect, loc);
+      Value elapsed = swStopCall.getResult(0);
+      Value taskName = toy::allocString(rewriter, llvmDialect,
+          loc, op, "func");
+      // TODO: need to call each variant
+      Value variantId = createConstInt32(rewriter, typeConverter, loc, 1);
 
-		callCRTLogMeasurement(rewriter, parentModule, llvmDialect, loc,
-				{taskName, variantId, elapsed});
-	}
+      callCRTLogMeasurement(rewriter, parentModule, llvmDialect, loc,
+          {taskName, variantId, elapsed});
+    }
 
     // Notify the rewriter that this operation has been removed.
     rewriter.eraseOp(op);
