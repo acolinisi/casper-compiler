@@ -228,6 +228,7 @@ std::vector<std::string> compileHalideTasksToProfile(cac::TaskGraph &tg,
 				  libs.push_back(lib);
 				  ++validSamples;
 				} catch(std::exception &e) {
+				  std::cerr << "failed to compile variant" << std::endl;
 				  continue;
 				}
 			}
