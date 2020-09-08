@@ -10,7 +10,7 @@ namespace {
 
 // TODO: is this efficient?
 float current_time() {
-	auto start_time = Halide::Tools::benchmark_now().time_since_epoch();
+	static auto start_time = Halide::Tools::benchmark_now().time_since_epoch();
 	auto now = Halide::Tools::benchmark_now().time_since_epoch() - start_time;
 	return std::chrono::duration_cast<std::chrono::microseconds>(now).count()
 		/ 1e3;
