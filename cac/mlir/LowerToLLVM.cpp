@@ -774,18 +774,18 @@ public:
 
     LLVM::LLVMType funcType = getKernFuncType(argTypes, llvmDialect);
 
-	// Pass the map in a lazy way, effectively an iterator
-	auto kernFuncMap = [&rewriter, &parentModule,
-		 &kernName, &funcType, &variantsAttr](unsigned index) {
-		unsigned variantId = variantsAttr[index].cast<IntegerAttr>().getInt();
-		std::ostringstream funcName;
-		funcName << kernName << "_v" << variantId;
-		FlatSymbolRefAttr funcRef = getOrInsertKernFunc(rewriter, parentModule,
-				funcName.str(), funcType);
-		return std::pair<unsigned, FlatSymbolRefAttr>(variantId, funcRef);
-	};
-	JumpTable kernVariantsTable(rewriter, parentModule, typeConverter, loc,
-			funcType, variantsAttr.size(), kernFuncMap);
+    // Pass the map in a lazy way, effectively an iterator
+    auto kernFuncMap = [&rewriter, &parentModule,
+         &kernName, &funcType, &variantsAttr](unsigned index) {
+           unsigned variantId = variantsAttr[index].cast<IntegerAttr>().getInt();
+           std::ostringstream funcName;
+           funcName << kernName << "_v" << variantId;
+           FlatSymbolRefAttr funcRef = getOrInsertKernFunc(rewriter, parentModule,
+               funcName.str(), funcType);
+           return std::pair<unsigned, FlatSymbolRefAttr>(variantId, funcRef);
+         };
+    JumpTable kernVariantsTable(rewriter, parentModule, typeConverter, loc,
+        funcType, variantsAttr.size(), kernFuncMap);
 
     auto nodeId = callCRTGetNodeTypeId(rewriter, parentModule, llvmDialect,
 			loc).getResult(0);
