@@ -200,22 +200,36 @@ std::vector<std::string> compileHalideTasksToProfile(cac::TaskGraph &tg,
 			  inputPropsAndParams.push_back(prop);
 			for (auto &param : hTask->impl->params)
 			  inputPropsAndParams.push_back(param);
+#if 0
 			kb.drawSamples(generator, inputPropsAndParams);
 
 			auto& samples = kb.getSamples(generator);
 			unsigned i = 0;
 			for (auto &sample : samples) {
+#else
+			unsigned validSamples = 0;
+		        while (validSamples < kb.sampleCount) {
+			  unsigned variantId = validSamples;
+			  KnowledgeBase::ParamMap sample =
+			      kb.drawSample(generator, inputPropsAndParams,
+				  variantId);
+#endif
 				std::ostringstream artifact;
-				artifact << generator << "_v" << std::to_string(i++);
+				artifact << generator << "_v" << std::to_string(variantId++);
 
 				std::cerr << "sample params for generator " << generator
 					<< "(artifact " << artifact.str() << ":" << std::endl;
 				for (auto &kv : sample) {
 					std::cerr << kv.first << " = " << kv.second << std::endl;
 				}
-				const std::string &lib = compileHalideKernel(generator,
-						artifact.str(), sample);
-				libs.push_back(lib);
+				try {
+				  const std::string &lib = compileHalideKernel(generator,
+						  artifact.str(), sample);
+				  libs.push_back(lib);
+				  ++validSamples;
+				} catch(std::exception &e) {
+				  continue;
+				}
 			}
 		}
 	}

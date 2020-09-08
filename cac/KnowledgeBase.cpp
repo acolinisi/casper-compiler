@@ -109,6 +109,28 @@ const KnowledgeBase::ParamMap&  KnowledgeBase::getParams(
 	assert(!"kernel not in KnowledgeBase");
 }
 
+KnowledgeBase::ParamMap KnowledgeBase::drawSample(const std::string &generator,
+		std::vector<std::string> paramNames, unsigned variantId)
+{
+	std::ofstream samplesFile(samplesFilename, std::ios_base::app);
+	ParamMap params;
+	for (auto &paramName : paramNames) {
+#if 1
+		params[paramName] = std::to_string(1 + rand() % 8); // TODO: <random>
+#else // dummy
+		params[paramName] = std::to_string(i + 1);
+#endif
+		std::cout << "gen " << generator << " param " << paramName
+			<< std::endl;
+		samplesFile << generator << "," << variantId << ","
+			<< paramName << "," << params[paramName] << std::endl;
+	}
+	samples[generator].insert(params);
+	std::cout << "gen " << generator << " size "
+		<< samples[generator].size() << std::endl;
+	return params;
+}
+
 void KnowledgeBase::drawSamples(const std::string &generator,
 		std::vector<std::string> paramNames)
 {
@@ -116,7 +138,7 @@ void KnowledgeBase::drawSamples(const std::string &generator,
 	for (int i = 0; i < sampleCount; ++i) {
 		ParamMap params;
 		for (auto &paramName : paramNames) {
-#if 0
+#if 1
 			params[paramName] = std::to_string(1 + rand() % 8); // TODO: <random>
 #else
 			params[paramName] = std::to_string(i + 1);

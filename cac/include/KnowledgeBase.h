@@ -27,6 +27,9 @@ namespace cac {
 				const NodeDesc &nodeDesc);
 		void drawSamples(const std::string &generator,
 				std::vector<std::string> paramNames);
+		ParamMap drawSample(const std::string &generator,
+				std::vector<std::string> paramNames,
+				unsigned variantId);
 		std::set<ParamMap> &getSamples(const std::string &generator);
 	public:
 		// kernel name -> node type id -> param -> value
