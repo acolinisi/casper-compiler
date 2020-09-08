@@ -90,7 +90,10 @@ def train(model_output_dir, exectime_measurements,
 
         print(sess.run(loss, feed_dict={x: train_feature, y: train_label}))
 
-        lowest_mape = 1
+        # TODO: does this have to be limited at 1? I'm seeing MAPE>20 for
+        # some profiling+training runs.
+        #lowest_mape = 1
+        lowest_mape = 25
 
         highest_rho = 0
         asso_rho = 0
