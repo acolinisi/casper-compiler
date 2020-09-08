@@ -2,6 +2,7 @@
 #include "KnowledgeBase.h"
 #include "Platform.h"
 #include "Options.h"
+#include "InputDesc.h"
 
 #include "tune.h"
 #include "halide.h"
@@ -44,22 +45,34 @@ namespace cac {
 
 void compile(TaskGraph &tg, const Options &opts) {
 
-	KnowledgeBase db;
+	KnowledgeBase db{opts.profilingSamplesFile};
 	db.loadPlatform(opts.platformFile);
 	cac::Platform plat{db.getNodeTypes()};
 
 	cac::introspectHalideTasks(tg);
 
+	// TODO: list of variant IDs should be per task
+	std::vector<unsigned> variantIds;
 	std::vector<std::string> halideLibs;
 	if (!opts.profilingHarness) {
-		cac::tune(tg, db, opts.modelFile, opts.modelCPFile, opts.candidatesFile);
+
+		InputDesc inputDesc(opts.inputDescFile);
+
+		cac::tune(tg, db, inputDesc, opts.modelsDir, opts.candidatesFile);
 		halideLibs = cac::compileHalideTasks(tg, plat, db);
+
+		for (auto &nodeDesc : plat.nodeTypes) {
+			variantIds.push_back(nodeDesc.id);
+		}
 	} else {
 		halideLibs = cac::compileHalideTasksToProfile(tg, db);
+		for (unsigned vId = 0; vId < db.sampleCount; ++vId) {
+			variantIds.push_back(vId);
+		}
 	}
 	if (opts.buildArgsFile.size())
 		composeArgsFile(tg, db, halideLibs, opts.buildArgsFile);
-	cac::emitLLVMIR(opts.llOutputFile, tg, plat,
+	cac::emitLLVMIR(opts.llOutputFile, tg, variantIds,
 			opts.profilingHarness, opts.profilingMeasurementsFile);
 }
 

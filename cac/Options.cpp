@@ -6,12 +6,31 @@
 
 namespace po = boost::program_options;
 
+namespace {
+
+} // anon namespace
+
 namespace cac {
 
 class Options::Impl {
 public:
 	Impl(Options &opts);
 	void parse(int argc, char **argv);
+
+	bool isStrArgSet(const std::string &arg) {
+		return vm.count(arg) && vm[arg].as<std::string>().size() > 0;
+	}
+	bool isBoolArgSet(const std::string &arg) {
+		return vm.count(arg) && vm[arg].as<bool>();
+	}
+
+	void requireStrArg(const std::string &arg) {
+		if (!isStrArgSet(arg)) {
+			std::ostringstream msg;
+			msg << "invalid arguments: --" << arg << " is missing";
+			throw std::runtime_error(msg.str());
+		}
+	}
 public:
 	Options &opts;
 	po::options_description desc;
@@ -51,18 +70,23 @@ Options::Impl::Impl(Options &opts) :
 		 "name of output file build arguments for CMake")
 		("platform,p", po::value<std::string>(&opts.platformFile)->required(),
 		 "name of input file with target platform definition")
+		("input", po::value<std::string>(&opts.inputDescFile),
+		 "name of input file with description of input for which to tune")
+
 		("profiling-harness", po::bool_switch(&opts.profilingHarness),
 		 "generate profiling harness instead of main app")
 		("profiling-measurements",
 		 po::value<std::string>(&opts.profilingMeasurementsFile),
 		 "name of output file where to save profiling data")
+		("profiling-samples",
+		 po::value<std::string>(&opts.profilingSamplesFile),
+		 "name of output file where to save samples chosen for profiling")
+
+		("models", po::value<std::string>(&opts.modelsDir),
+		 "name of input directory with trained performance models")
 
 		// TODO: These will change eventually: will be generated during the
 		// compilation flow, and models are per task, not per app.
-		("model", po::value<std::string>(&opts.modelFile)->required(),
-		 "name of input file with trained performance prediction model")
-		("model-cp", po::value<std::string>(&opts.modelCPFile)->required(),
-		 "name of input file with checkpoints for the performance model")
 		("candidates", po::value<std::string>(&opts.candidatesFile)->required(),
 		 "name of input file with candidates for tunable parameters")
 		;
@@ -72,14 +96,12 @@ void Options::Impl::parse(int argc, char **argv) {
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm);
 
-	if (vm.count("profiling-harness")) {
-		if (!vm.count("profiling-measurements") ||
-				vm["profiling-measurements"].as<std::string>().size() == 0) {
-			std::ostringstream msg;
-			msg << "invalid arguments: --profiling-measurements required "
-				<< "when --profiling-harness is set";
-			throw std::runtime_error(msg.str());
-		}
+	if (isBoolArgSet("profiling-harness")) {
+		requireStrArg("profiling-measurements");
+		requireStrArg("profiling-samples");
+	} else { // not profiling-harness
+		requireStrArg("models");
+		requireStrArg("input");
 	}
 }
 

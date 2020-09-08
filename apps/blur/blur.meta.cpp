@@ -10,8 +10,8 @@ int main(int argc, char **argv) {
 
 	TaskGraph tg("blur"); // must match target name in CMake script
 
-	int img_width = 256, img_height = 200; // casper-256x200.bmp
-	//int img_width = 1695, img_height = 1356; // casper.bmp
+	//int img_width = 256, img_height = 200; // casper-256x200.bmp
+	int img_width = 1695, img_height = 1356; // casper.bmp
 	//int img_width = 16950, img_height = 13560; // casper-tiled10.bmp
 	//int img_width = 33900, img_height = 27120; // casper-tiled20.bmp
 

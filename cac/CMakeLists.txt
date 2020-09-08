@@ -28,6 +28,7 @@ add_llvm_library(cac
   ini.cpp
   mlir.cpp
   tune.cpp
+  InputDesc.cpp
   KnowledgeBase.cpp
   Options.cpp
   Platform.cpp

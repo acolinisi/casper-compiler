@@ -7,7 +7,9 @@ from trainer import train
 
 parser = argparse.ArgumentParser(
         description='Train performance models from profiling data')
-parser.add_argument('prof_data_file',
+parser.add_argument('samples_file',
+        help='Input data file with sampled variants in CSV format')
+parser.add_argument('measurements_file',
         help='Input data file with profiling measurements in CSV format')
 parser.add_argument('model_dir',
         help='Name of output directory where to save models for each task')
@@ -26,26 +28,59 @@ parser.add_argument('--tolerance', type=float, default=0.01,
 args = parser.parse_args()
 
 header_setting = 0 if not args.legacy_format != 0 else None
-prof_data = pd.read_csv(args.prof_data_file, header=header_setting)
-print(prof_data)
+measurements = pd.read_csv(args.measurements_file, header=header_setting)
+print(measurements)
+
+samples = pd.read_csv(args.samples_file)
+print(samples)
 
 if args.legacy_format:
-    prof_data.columns = ['elapsed_s', 'h', 'w', 'p1', 'p2', 'p3', 'p4', 'dummy']
-    task_col = pd.DataFrame(dict(task=['task'] * len(prof_data)))
-    prof_data = pd.concat([task_col, prof_data], axis=1)
-    print(prof_data)
+    measurements.columns = ['elapsed_s', 'h', 'w', 'p1', 'p2', 'p3', 'p4', 'dummy']
+    task_col = pd.DataFrame(dict(task=['task'] * len(measurements)))
+    measurements = pd.concat([task_col, measurements], axis=1)
+    print(measurements)
 
-for task, data in prof_data.groupby('task'):
-    data = data[[c for c in data.columns if c != 'task']]
-    data = np.array(data)
+for task, task_meas in measurements.groupby('task'):
 
-    # TODO: for non-legacy format, save variant params and join dataframes here
     if not args.legacy_format:
-            sys.exit(0) # placeholder, let the build succeed
+            task_samples = samples[samples["task"] == task]
+
+            # Create the data frame for the data to feed train(), by joining
+            # the samples dataset (param values) with the measurements dataset
+            # (elapsed times).
+
+            # TODO: the following is extremely fragile. The interface into
+            # trainer needs to be changed to take in a key-value map of params,
+            # instead of relying on an ordered list of values, or at least take
+            # the order (list of param names) as an argument as well.
+
+            # First, pick any variant, just to get param count
+            any_variant = task_meas.iloc[0]['variant']
+            variant_params = \
+                task_samples[task_samples['variant'] == any_variant]
+            columns = ['elapsed_s'] + list(variant_params['param'])
+            prof_df = pd.DataFrame(columns=columns)
+
+            for i, row in task_meas.iterrows():
+                variant_params = \
+                        task_samples[task_samples['variant'] == row['variant']]
+                row_dict = dict(elapsed_s=row['elapsed_s'])
+                for j, prow in variant_params[['param', 'value']].iterrows():
+                    row_dict[prow['param']] = prow['value']
+                prof_df = pd.concat([prof_df, pd.DataFrame(row_dict, index=[0])],
+                    axis=0, ignore_index=True)
+    else: # legacy format (no joining, both samples and times are in one file)
+        prof_df = measurements[[c for c in data.columns if c != 'task']]
 
     task_model_dir = os.path.join(args.model_dir, task)
-    os.makedirs(task_model_dir)
+    if not os.path.exists(task_model_dir) or not os.path.isdir(task_model_dir):
+        os.makedirs(task_model_dir)
 
-    train(task_model_dir, data,
+    print(prof_df)
+    prof_data = np.array(prof_df)
+    train(task_model_dir, prof_data,
             layers=args.layers, test_set_fraction=args.test_set_fraction,
             features=args.features, steps=args.steps, tolerance=args.tolerance)
+
+    # Contract with CMake script (a file artifact to track generated directory)
+    open(os.path.join(args.model_dir, "timestamp"), "w").close()

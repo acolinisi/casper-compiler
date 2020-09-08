@@ -147,6 +147,9 @@ void introspectHalideTasks(cac::TaskGraph &tg) {
 				if (dynamic_cast<::cac::TunableGeneratorParam*>(p)) {
 					halideTaskObj->impl->params.push_back(p->name);
 				}
+				if (dynamic_cast<::cac::InputGeneratorParam*>(p)) {
+					halideTaskObj->impl->inputProps.push_back(p->name);
+				}
 			}
 		}
 	}
@@ -192,7 +195,12 @@ std::vector<std::string> compileHalideTasksToProfile(cac::TaskGraph &tg,
 
 			// Doing this on-demand here, but we can move this to
 			// happen whenever (after generator introspection).
-			kb.drawSamples(generator, hTask->impl->params);
+			std::vector<std::string> inputPropsAndParams;
+			for (auto &prop: hTask->impl->inputProps)
+			  inputPropsAndParams.push_back(prop);
+			for (auto &param : hTask->impl->params)
+			  inputPropsAndParams.push_back(param);
+			kb.drawSamples(generator, inputPropsAndParams);
 
 			auto& samples = kb.getSamples(generator);
 			unsigned i = 0;

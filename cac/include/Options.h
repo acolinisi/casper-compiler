@@ -16,9 +16,12 @@ public:
 		std::string llOutputFile;
 		std::string buildArgsFile;
 		std::string platformFile;
+		std::string modelsDir;
+		std::string inputDescFile;
 
 		bool profilingHarness;
 		std::string profilingMeasurementsFile;
+		std::string profilingSamplesFile;
 
 		// TODO: These will change eventually: will be generated during the
 		// compilation flow, and models are per task, not per app.

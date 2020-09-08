@@ -24,6 +24,13 @@ public:
 			const int &max = std::numeric_limits<int>::max())
         : Halide::GeneratorParam<int>(name, value, min, max) {}
 };
+class InputGeneratorParam : public Halide::GeneratorParam<int> {
+public:
+    InputGeneratorParam(const std::string &name, const int &value,
+			const int &min = std::numeric_limits<int>::lowest(),
+			const int &max = std::numeric_limits<int>::max())
+        : Halide::GeneratorParam<int>(name, value, min, max) {}
+};
 #endif
 
 } // namespace cac

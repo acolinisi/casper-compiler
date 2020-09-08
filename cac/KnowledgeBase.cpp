@@ -12,10 +12,13 @@
 
 namespace cac {
 
-KnowledgeBase::KnowledgeBase() :
+KnowledgeBase::KnowledgeBase(const std::string &samplesFilename) :
 	// TODO: KnowledgeBase is responsible for figuring out sample count
-	sampleCount(2)
+	sampleCount(16),
+	samplesFilename(samplesFilename)
 {
+	std::ofstream samplesFile(samplesFilename);
+	samplesFile << "task,variant,param,value" << std::endl;
 }
 
 void KnowledgeBase::loadPlatform(const std::string &iniFile) {
@@ -109,6 +112,7 @@ const KnowledgeBase::ParamMap&  KnowledgeBase::getParams(
 void KnowledgeBase::drawSamples(const std::string &generator,
 		std::vector<std::string> paramNames)
 {
+	std::ofstream samplesFile(samplesFilename, std::ios_base::app);
 	for (int i = 0; i < sampleCount; ++i) {
 		ParamMap params;
 		for (auto &paramName : paramNames) {
@@ -119,6 +123,8 @@ void KnowledgeBase::drawSamples(const std::string &generator,
 #endif
 			std::cout << "gen " << generator << " param " << paramName
 				<< std::endl;
+			samplesFile << generator << "," << i << ","
+				<< paramName << "," << params[paramName] << std::endl;
 		}
 		samples[generator].insert(params);
 		std::cout << "gen " << generator << " size "

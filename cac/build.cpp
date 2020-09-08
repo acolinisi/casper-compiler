@@ -22,13 +22,14 @@ namespace {
 
 // Traverse the task graph in depth-first order
 void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
-    cac::Platform &plat, bool printDat, bool profilingHarness)
+    std::vector<unsigned> variantIds, bool printDat, bool profilingHarness)
 {
   // Constant dat; TODO: support non-constant buffer
 
   for (cac::Task *dep : task.deps) {
     if (!dep->visited)
-      invokeKernels(builder, context, *dep, plat, printDat, profilingHarness);
+      invokeKernels(builder, context, *dep, variantIds, printDat,
+	  profilingHarness);
   }
 
   // Invoke the kernel
@@ -37,8 +38,8 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
       funcAttr);
 
   std::vector<Attribute> variants;
-  for (auto &nodeDesc : plat.nodeTypes) {
-    auto idAttr = IntegerAttr::get(builder.getI32Type(), nodeDesc.id);
+  for (auto &variantId : variantIds) {
+    auto idAttr = IntegerAttr::get(builder.getI32Type(), variantId);
     variants.push_back(idAttr);
   }
   auto variantsAttr = ArrayAttr::get(variants, &context);
@@ -143,7 +144,7 @@ mlir::LLVM::LLVMFuncOp declareInitProfilingFunc(OpBuilder &builder,
 namespace cac {
 
 int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
-    cac::Platform &plat, MLIRContext &context,
+    std::vector<unsigned> variantIds, MLIRContext &context,
     bool profilingHarness, const std::string &profilingMeasurementsFile)
 {
   module = OwningModuleRef(ModuleOp::create(
@@ -301,7 +302,7 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
   //  std::unique_ptr<Task>& root = *rooti;
   for (std::unique_ptr<cac::Task>& root : tg.tasks) {
     if (!root->visited)
-      invokeKernels(builder, context, *root, plat, tg.datPrintEnabled,
+      invokeKernels(builder, context, *root, variantIds, tg.datPrintEnabled,
 	  profilingHarness);
   }
 

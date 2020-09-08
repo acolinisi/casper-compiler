@@ -67,6 +67,7 @@ public:
 class HalideTaskImpl {
 public:
 	std::vector<std::string> params;
+	std::vector<std::string> inputProps;
 };
 
 } // nameaspace cac

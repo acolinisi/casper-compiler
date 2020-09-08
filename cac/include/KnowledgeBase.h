@@ -17,7 +17,7 @@ namespace cac {
 		using ParamMap = std::map<std::string, std::string>;
 		using DB = std::map<std::string, std::map<unsigned, ParamMap>>;
 	public:
-		KnowledgeBase();
+		KnowledgeBase(const std::string &samplesFilename);
 		void loadPlatform(const std::string &iniFile);
 		std::vector<NodeDesc> getNodeTypes();
 		std::vector<vertex_descriptor_t> getNodeTypeVertices();
@@ -35,6 +35,7 @@ namespace cac {
 		// kernel name -> { param -> value, ... }
 		std::map<std::string, std::set<ParamMap>> samples;
 		unsigned sampleCount; // variants of each kernel to profile
+		std::string samplesFilename;
 	};
 } // namespace cac
 

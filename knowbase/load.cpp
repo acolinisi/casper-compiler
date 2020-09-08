@@ -115,6 +115,8 @@ std::map<std::string, float> select_variant(graph_t &KB,
     float min_runtime = std::numeric_limits<float>::max();
     std::vector<float> selected_variant = {0, 0, 0, 0};
 
+    getline(in,line); // consume and throw away the header
+
     while (getline(in,line))
     {
         Tokenizer tok(line);

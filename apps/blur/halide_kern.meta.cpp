@@ -10,6 +10,10 @@ public:
     GeneratorParam<int> tile_x{"tile_x", /* 32 */ 1};  // X tile.
     GeneratorParam<int> tile_y{"tile_y", /* 8 */ 1};   // Y tile.
 
+    // TODO: These do not alter schedule, but autotuner code assumes
+    // there are input size parameters. This needs to be thought out.
+    cac::InputGeneratorParam ph{"ph", 1024};
+    cac::InputGeneratorParam pw{"pw", 1024};
     // TODO: name descriptively
     cac::TunableGeneratorParam p1{"p1", 1};
     cac::TunableGeneratorParam p2{"p2", 1};
@@ -23,8 +27,8 @@ public:
     static const int BLUR_WIDTH = 16;
 
     // TODO: it's bad we have to know the width (see comments below)
-    //static const int IMG_WIDTH = 1695; // casper.bmp
-    static const int IMG_WIDTH = 256; // casper-256x100.bmp
+    static const int IMG_WIDTH = 1695; // casper.bmp
+    //static const int IMG_WIDTH = 256; // casper-256x100.bmp
     //static const int IMG_WIDTH = 16950; // casper-tiled10.bmp
     // static const int IMG_WIDTH = 27120; // casper-tiled20.bmp
 

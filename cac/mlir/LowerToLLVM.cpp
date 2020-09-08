@@ -787,39 +787,38 @@ public:
     JumpTable kernVariantsTable(rewriter, parentModule, typeConverter, loc,
         funcType, variantsAttr.size(), kernFuncMap);
 
-    auto nodeId = callCRTGetNodeTypeId(rewriter, parentModule, llvmDialect,
-			loc).getResult(0);
-
-    Value funcPtr = kernVariantsTable.lookup(nodeId, loc);
-
-    SmallVector<Value, 8> opArgVals{funcPtr};
-    for (auto &arg : argVals) {
-      opArgVals.push_back(arg);
-    }
-
     IntegerAttr profileAttr = op->getAttrOfType<IntegerAttr>("profile");
     bool profile = profileAttr ? profileAttr.getInt() : false;
     std::cout << "profile: " << profile << std::endl;
 
+    // TODO: reorg the code, so that we don't have this fundamental branch
     if (profile) {
-      callCRTStopWatchStart(rewriter, parentModule, llvmDialect, loc);
-    }
+      // TODO: generate an actual loop (at runtime)
+      for (int variantIdx = 0; variantIdx < variantsAttr.size();
+          ++variantIdx) {
+        unsigned variantId =
+          variantsAttr[variantIdx].cast<IntegerAttr>().getInt();
+        Value variantIdVal = createConstInt32(rewriter, typeConverter, loc,
+            variantId);
+        Value funcPtr = kernVariantsTable.lookup(variantIdVal, loc);
 
-    auto newOp = rewriter.create<LLVM::CallOp>(op->getLoc(),
-      LLVM::LLVMType::getVoidTy(llvmDialect), opArgVals,
-      ArrayRef<NamedAttribute>{});
+        callCRTStopWatchStart(rewriter, parentModule, llvmDialect, loc);
+        invokeKernel(rewriter, funcPtr, argVals, op, llvmDialect);
 
-    if (profile) {
-      auto swStopCall = callCRTStopWatchStop(rewriter, parentModule,
-          llvmDialect, loc);
-      Value elapsed = swStopCall.getResult(0);
-      Value taskName = toy::allocString(rewriter, llvmDialect,
-          loc, op, "func");
-      // TODO: need to call each variant
-      Value variantId = createConstInt32(rewriter, typeConverter, loc, 1);
-
-      callCRTLogMeasurement(rewriter, parentModule, llvmDialect, loc,
-          {taskName, variantId, elapsed});
+        auto swStopCall = callCRTStopWatchStop(rewriter, parentModule,
+            llvmDialect, loc);
+        Value elapsed = swStopCall.getResult(0);
+        Value taskName = toy::allocString(rewriter, llvmDialect,
+            loc, op, "func");
+        callCRTLogMeasurement(rewriter, parentModule, llvmDialect, loc,
+            {taskName, variantIdVal, elapsed});
+      }
+    } else {
+      // Generate a call into runtime lib that choses the variant
+      auto nodeId = callCRTGetNodeTypeId(rewriter, parentModule, llvmDialect,
+                          loc).getResult(0);
+      Value funcPtr = kernVariantsTable.lookup(nodeId, loc);
+      invokeKernel(rewriter, funcPtr, argVals, op, llvmDialect);
     }
 
     // Notify the rewriter that this operation has been removed.
@@ -842,6 +841,18 @@ private:
 
       return LLVM::LLVMType::getFunctionTy(llvmVoidTy, args,
           /*isVarArg*/ false);
+  }
+
+  static void invokeKernel(OpBuilder &builder,
+      Value funcPtr, SmallVector<Value, 8> &argVals,
+      Operation *op, LLVM::LLVMDialect *llvmDialect) {
+    SmallVector<Value, 8> opArgVals{funcPtr};
+    for (auto &arg : argVals) {
+      opArgVals.push_back(arg);
+    }
+    auto newOp = builder.create<LLVM::CallOp>(op->getLoc(),
+        LLVM::LLVMType::getVoidTy(llvmDialect), opArgVals,
+        ArrayRef<NamedAttribute>{});
   }
 };
 } // end anonymous namespace
