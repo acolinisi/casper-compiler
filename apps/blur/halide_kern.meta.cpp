@@ -10,10 +10,12 @@ public:
     GeneratorParam<int> tile_x{"tile_x", /* 32 */ 1};  // X tile.
     GeneratorParam<int> tile_y{"tile_y", /* 8 */ 1};   // Y tile.
 
+#if 0 // not used since tuning is out-of-band (not by the compiler) now
     // TODO: These do not alter schedule, but autotuner code assumes
     // there are input size parameters. This needs to be thought out.
     cac::InputGeneratorParam ph{"ph", 1024};
     cac::InputGeneratorParam pw{"pw", 1024};
+#endif
     // TODO: name descriptively
     cac::TunableGeneratorParam p1{"p1", 1};
     cac::TunableGeneratorParam p2{"p2", 1};
