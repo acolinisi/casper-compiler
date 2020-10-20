@@ -198,13 +198,14 @@ function(casper_build target app_args_file)
 	# Compile C Kernels (one library for all variants of all kernels).
 	# TODO: implement variants using a macro that wraps a kernel function
 	# and expand to multiple definitions, one per variant.
-	set(lib ${target}_kern_c)
 	foreach(c_src_file ${FARG_C_KERNEL_SOURCES})
-		#message(FATAL_ERROR meta src ${META_SOURCE_DIR}/${c_src_file})
 	    list(APPEND c_src_files ${META_SOURCE_DIR}/${c_src_file})
 	endforeach()
-	add_library(${lib} ${c_src_files})
-	list(APPEND kernel_libs ${lib})
+	if (c_src_files)
+		set(lib ${target}_kern_c)
+		add_library(${lib} ${c_src_files})
+		list(APPEND kernel_libs ${lib})
+	endif ()
 
 	# Halide libraries that were compiled by the metaprogram when it ran
 	foreach(halide_lib ${FARG_HALIDE_TASK_LIBS})
