@@ -90,7 +90,7 @@ Options::Impl::Impl(Options &opts) :
 
 		// TODO: These will change eventually: will be generated during the
 		// compilation flow, and models are per task, not per app.
-		("candidates", po::value<std::string>(&opts.candidatesFile)->required(),
+		("candidates", po::value<std::string>(&opts.candidatesFile),
 		 "name of input file with candidates for tunable parameters")
 		;
 }

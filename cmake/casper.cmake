@@ -37,15 +37,21 @@ function(casper_add_exec target meta_prog)
 	# Common across invocations of metaprogram (for harness and for app)
 	set(META_PROG_ARGS
 		--platform ${FARG_PLATFORM}
-		--candidates ${FARG_CANDIDATES}
 	)
 	set(META_PROG_OPTS
 		C_KERNEL_SOURCES ${FARG_C_KERNEL_SOURCES}
 	)
 	set(META_PROG_DEPS
 		${FARG_PLATFORM}
-		${FARG_CANDIDATES}
 	)
+
+	# This is actually required in the automated stack (with profiling
+	# harness, etc).
+	if (FARG_CANDIDATES)
+		set(META_PROG_ARGS ${META_PROG_ARGS}
+			--candidates ${FARG_CANDIDATES})
+		set(META_PROG_DEPS ${META_PROG_DEPS} ${FARG_CANDIDATES})
+	endif ()
 
 	## Run the meta-program to generate profiling harness
 	#set(prof_harness ${target}_prof)
