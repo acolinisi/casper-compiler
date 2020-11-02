@@ -123,6 +123,35 @@ LLVM::CallOp callCRTGetNodeTypeId(ConversionPatternRewriter &rewriter,
 	return callCRT(rewriter, mod, loc, "_crt_plat_get_node_type_id", typeCtor);
 }
 
+LLVM::CallOp callCRTMonTaskBegin(ConversionPatternRewriter &rewriter,
+		ModuleOp &mod, LLVM::LLVMDialect *llvmDialect, Location loc,
+                ValueRange args) {
+	auto typeCtor = [llvmDialect]() {
+		auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+		auto llvmCharTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
+		auto llvmI32Ty = LLVM::LLVMType::getInt32Ty(llvmDialect);
+		return LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+                    {llvmCharTy.getPointerTo(), llvmI32Ty},
+                    /*VarArg*/ false);
+	};
+	return callCRT(rewriter, mod, loc, "_crt_mon_task_begin", typeCtor,
+            args);
+}
+LLVM::CallOp callCRTMonTaskEnd(ConversionPatternRewriter &rewriter,
+		ModuleOp &mod, LLVM::LLVMDialect *llvmDialect, Location loc,
+                ValueRange args) {
+	auto typeCtor = [llvmDialect]() {
+		auto llvmVoidTy = LLVM::LLVMType::getVoidTy(llvmDialect);
+		auto llvmCharTy = LLVM::LLVMType::getInt8Ty(llvmDialect);
+		auto llvmI32Ty = LLVM::LLVMType::getInt32Ty(llvmDialect);
+		return LLVM::LLVMType::getFunctionTy(llvmVoidTy,
+                    {llvmCharTy.getPointerTo(), llvmI32Ty},
+                    /*VarArg*/ false);
+	};
+	return callCRT(rewriter, mod, loc, "_crt_mon_task_end", typeCtor,
+            args);
+}
+
 
 /// Return a symbol reference to the kernel function, inserting it into the
 /// module if necessary.
@@ -791,6 +820,9 @@ public:
     bool profile = profileAttr ? profileAttr.getInt() : false;
     std::cout << "profile: " << profile << std::endl;
 
+    Value taskName = toy::allocString(rewriter, llvmDialect, loc,
+        op, "func");
+
     // TODO: reorg the code, so that we don't have this fundamental branch
     if (profile) {
       // TODO: generate an actual loop (at runtime)
@@ -808,8 +840,6 @@ public:
         auto swStopCall = callCRTStopWatchStop(rewriter, parentModule,
             llvmDialect, loc);
         Value elapsed = swStopCall.getResult(0);
-        Value taskName = toy::allocString(rewriter, llvmDialect,
-            loc, op, "func");
         callCRTLogMeasurement(rewriter, parentModule, llvmDialect, loc,
             {taskName, variantIdVal, elapsed});
       }
@@ -818,7 +848,11 @@ public:
       auto nodeId = callCRTGetNodeTypeId(rewriter, parentModule, llvmDialect,
                           loc).getResult(0);
       Value funcPtr = kernVariantsTable.lookup(nodeId, loc);
+      callCRTMonTaskBegin(rewriter, parentModule, llvmDialect, loc,
+          {taskName, nodeId});
       invokeKernel(rewriter, funcPtr, argVals, op, llvmDialect);
+      callCRTMonTaskEnd(rewriter, parentModule, llvmDialect, loc,
+          {taskName, nodeId});
     }
 
     // Notify the rewriter that this operation has been removed.

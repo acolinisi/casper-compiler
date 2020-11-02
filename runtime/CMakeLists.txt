@@ -2,6 +2,7 @@ set(lib casper_runtime)
 set(lib_prof casper_runtime_prof) # for profiling harness
 
 set(COMMON_SOURCES
+  monitor.cpp
   platform.cpp
   python.cpp
 )
