@@ -31,20 +31,21 @@ dt = 5.0e-06
 lmbda = 1.0e-02
 theta = 0.5
 steps = 1
-compute_norms = True
+compute_norms = False # TODO
 verbose = False
 
 solution_out = None
 
 def solve_ch(res):
-    params = CahnHilliardProblem.get_solve_params(
-            pc=preconditioner, ksp=ksp, inner_ksp=inner_ksp,
-            maxit=max_iterations, verbose=verbose)
     mesh = CahnHilliardProblem.make_mesh(mesh_size)
-    u, u0, solver = CahnHilliardProblem.do_setup(mesh, preconditioner,
+    init_loop, mass_loops, hats_loops, assign_loops, u, u0, solver = \
+            CahnHilliardProblem.do_setup(mesh, pc=preconditioner,
             degree=degree, dt=dt, theta=theta,
-            lmbda=lmbda, params=params)
+            lmbda=lmbda, ksp=ksp, inner_ksp=inner_ksp,
+            maxit=max_iterations, verbose=verbose)
 
     file = File(solution_out) if solution_out else None
-    CahnHilliardProblem.do_solve(u, u0, solver, steps,
+    CahnHilliardProblem.do_solve(init_loop, mass_loops, hats_loops,
+            assign_loops, u, u0, solver, steps,
+            maxit=max_iterations, inner_ksp=inner_ksp,
             compute_norms=compute_norms, out_file=file)

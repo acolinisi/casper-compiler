@@ -1,4 +1,5 @@
 from firedrake import *
+from pyop2.configuration import configuration
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -8,8 +9,13 @@ class CahnHilliardProblem:
     def make_mesh(x, dim=2):
         return UnitSquareMesh(x, x) if dim == 2 else UnitCubeMesh(x, x, x)
 
-    def get_solve_params(verbose=False, maxit=1, ksp='gmres',
-            inner_ksp='preonly', pc='fieldsplit'):
+    def do_setup(mesh, pc='fieldsplit', degree=1, theta=0.5, dt=5.0e-06,
+                lmbda=1.0e-02, maxit=1,
+                ksp='gmres', inner_ksp='preonly',
+                verbose=False, out_lib_dir=None):
+        if out_lib_dir:
+            configuration['cache_dir'] = out_lib_dir
+
         params = {'pc_type': pc,
                   'ksp_type': ksp,
                   #'ksp_monitor': True,
@@ -53,10 +59,6 @@ class CahnHilliardProblem:
             params['ksp_monitor'] = True
             params['snes_view'] = True
             params['snes_monitor'] = True
-        return params
-
-    def do_setup(mesh, pc, degree=1, theta=0.5, dt=5.0e-06,
-                lmbda=1.0e-02, inner_ksp='preonly', maxit=1, params={}):
         V = FunctionSpace(mesh, "Lagrange", degree)
         ME = V*V
 
@@ -78,8 +80,9 @@ class CahnHilliardProblem:
         user_code = """int __rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &__rank);
         srandom(2 + __rank);"""
-        par_loop(init_code, direct, {'A': (u[0], WRITE)},
-                 headers=["#include <stdlib.h>"], user_code=user_code)
+        init_loop = par_loop(init_code, direct, {'A': (u[0], WRITE)},
+                 headers=["#include <stdlib.h>"], user_code=user_code,
+                 compute=False)
         u.dat.data_ro
 
         # Compute the chemical potential df/dc
@@ -100,51 +103,88 @@ class CahnHilliardProblem:
         problem = NonlinearVariationalProblem(F, u, J=J)
         solver = NonlinearVariationalSolver(problem, solver_parameters=params)
 
-        if pc in ['fieldsplit', 'ilu']:
-            sigma = 100
-            # PC for the Schur complement solve
-            trial = TrialFunction(V)
-            test = TestFunction(V)
-            mass = assemble(inner(trial, test)*dx).M.handle
-            a = 1
-            c = (dt * lmbda)/(1+dt * sigma)
-            hats = assemble(sqrt(a) * inner(trial, test)*dx + sqrt(c)*inner(grad(trial), grad(test))*dx).M.handle
+        sigma = 100
+        # PC for the Schur complement solve
+        trial = TrialFunction(V)
+        test = TestFunction(V)
 
-            from firedrake.petsc import PETSc
-            ksp_hats = PETSc.KSP()
-            ksp_hats.create()
-            ksp_hats.setOperators(hats)
-            opts = PETSc.Options()
+        mass_loops = assemble(inner(trial, test)*dx,
+                collect_loops=True, allocate_only=False)
 
-            opts['ksp_type'] = inner_ksp
-            opts['ksp_max_it'] = maxit
-            opts['pc_type'] = 'hypre'
-            ksp_hats.setFromOptions()
+        a = 1
+        c = (dt * lmbda)/(1+dt * sigma)
 
-            class SchurInv(object):
-                def mult(self, mat, x, y):
-                    tmp1 = y.duplicate()
-                    tmp2 = y.duplicate()
-                    ksp_hats.solve(x, tmp1)
-                    mass.mult(tmp1, tmp2)
-                    ksp_hats.solve(tmp2, y)
+        hats_loops = assemble(sqrt(a) * inner(trial, test)*dx + sqrt(c)*inner(grad(trial), grad(test))*dx, collect_loops=True, allocate_only=False)
 
-            pc_schur = PETSc.Mat()
-            pc_schur.createPython(mass.getSizes(), SchurInv())
-            pc_schur.setUp()
-            pc = solver.snes.ksp.pc
-            pc.setFieldSplitSchurPreType(PETSc.PC.SchurPreType.USER, pc_schur)
+        assign_loops = u0.assign(u, compute=False)
 
-        return u, u0, solver
+        # trigger compilation for ParLoop futures
+        loops = [init_loop] + [l for l in assign_loops] + \
+                [l for l in mass_loops] + [l for l in hats_loops] + \
+                [l for l in solver._ctx._assemble_jac] + \
+                [l for l in solver._ctx._assemble_residual]
+        if solver._ctx.Jp is not None:
+            loops += [l for l in solver._ctx._assemble_pjac]
+        for loop in loops:
+            if hasattr(loop, "compute"): # some are funcs
+                loop._jitmodule
+
+        return init_loop, mass_loops, hats_loops, assign_loops, \
+                u, u0, solver
 
     def do_measure_overhead(u0, solver):
         for _ in range(100):
             u0.assign(u)
             solver.solve()
 
-    def do_solve(u, u0, solver, steps, compute_norms=False, out_file=None):
+    def do_solve(init_loop, mass_loops, hats_loops, assign_loops,
+            u, u0, solver, steps,
+            maxit, inner_ksp, compute_norms=False, out_file=None):
+
+        def invoke_loops(loops):
+            for l in loops:
+                if hasattr(l, "compute"): # some are funcs
+                    r = l.compute()
+                else:
+                    r = l()
+            return r
+
+        invoke_loops([init_loop])
+
+        mass_m = invoke_loops(mass_loops)
+        mass = mass_m.M.handle
+
+        hats_m = invoke_loops(hats_loops)
+        hats = hats_m.M.handle
+
+        from firedrake.petsc import PETSc
+        ksp_hats = PETSc.KSP()
+        ksp_hats.create()
+        ksp_hats.setOperators(hats)
+        opts = PETSc.Options()
+
+        opts['ksp_type'] = inner_ksp
+        opts['ksp_max_it'] = maxit
+        opts['pc_type'] = 'hypre'
+        ksp_hats.setFromOptions()
+
+        class SchurInv(object):
+            def mult(self, mat, x, y):
+                tmp1 = y.duplicate()
+                tmp2 = y.duplicate()
+                ksp_hats.solve(x, tmp1)
+                mass.mult(tmp1, tmp2)
+                ksp_hats.solve(tmp2, y)
+
+        pc_schur = PETSc.Mat()
+        pc_schur.createPython(mass.getSizes(), SchurInv())
+        pc_schur.setUp()
+        pc = solver.snes.ksp.pc
+        pc.setFieldSplitSchurPreType(PETSc.PC.SchurPreType.USER, pc_schur)
+
         for step in range(steps):
-            u0.assign(u)
+            for l in assign_loops:
+                l.compute()
             solver.solve()
             if out_file is not None:
                 out_file << (u.split()[0], step)
