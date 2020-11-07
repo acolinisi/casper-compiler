@@ -119,6 +119,12 @@ namespace cac {
 		std::string module;
 	};
 
+	class PyGenerator {
+		public:
+			std::string module;
+			std::string func;
+	};
+
 	class TaskGraph {
 	public:
 		TaskGraph(const std::string &name);
@@ -136,6 +142,13 @@ namespace cac {
 		Task& createTask(PyKernel kern, std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
 
+		// There's a one-to-many relationship between generators and
+		// kernels; for now no association between a generator and the
+		// kernels it generates is tracked, but eventually it might
+		// make sense to associated generators to tasks.
+		void registerPyGenerator(const std::string &mod,
+				const std::string &func);
+
 		void setDatPrint(bool enable);
 
 	protected:
@@ -146,6 +159,7 @@ namespace cac {
 		std::string name;
 		std::vector<std::unique_ptr<Value>> values;
 		std::vector<std::unique_ptr<Task>> tasks;
+		std::vector<std::unique_ptr<PyGenerator>> pyGenerators;
 		bool datPrintEnabled;
 	};
 

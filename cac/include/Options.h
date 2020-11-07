@@ -31,6 +31,8 @@ public:
 		std::string modelCPFile;
 		std::string candidatesFile;
 
+		std::string pythonPath;
+
 		bool profile;
 private:
 		class Impl;

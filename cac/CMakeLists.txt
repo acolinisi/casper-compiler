@@ -5,6 +5,7 @@ add_subdirectory(include)
 # Halide's private headers needed to invoke generators from Casper.
 find_package(Halide REQUIRED)
 find_package(Boost COMPONENTS program_options)
+find_package(Python COMPONENTS Development REQUIRED)
 
 set(LLVM_LINK_COMPONENTS
   Support
@@ -27,6 +28,7 @@ add_llvm_library(cac
   halide.cpp
   ini.cpp
   mlir.cpp
+  python.cpp
   tune.cpp
   InputDesc.cpp
   KnowledgeBase.cpp
@@ -74,7 +76,12 @@ target_link_libraries(cac
   PUBLIC
   Halide::Halide
   Boost::program_options
+  ${Python_LIBRARIES}
   knowbase
   )
+
+target_include_directories(cac PRIVATE ${Python_INCLUDE_DIRS})
+target_link_directories(cac PRIVATE ${Python_LIBRARY_DIRS})
+
 
 mlir_check_link_libraries(cac)

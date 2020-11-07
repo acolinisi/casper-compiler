@@ -10,7 +10,7 @@ set(CASPER_COMPILER_LIB cac)
 function(casper_add_exec target meta_prog)
 	cmake_parse_arguments(FARG
 		""
-		"PLATFORM;INPUT_DESC;CANDIDATES;TUNED_PARAMS"
+		"PLATFORM;INPUT_DESC;CANDIDATES;TUNED_PARAMS;EXTRA_PYTHONPATH"
 		"SOURCES;C_KERNEL_SOURCES;TRAIN_ARGS"
 		${ARGN})
 
@@ -25,6 +25,7 @@ function(casper_add_exec target meta_prog)
 	endforeach()
 
 	find_package(Threads)
+	find_package(Python REQUIRED COMPONENTS Interpreter)
 
 	## TODO: FindCasper.cmake (figure out if functions go into Find*.cmake),
 	## then move these out of the function
@@ -37,6 +38,7 @@ function(casper_add_exec target meta_prog)
 	# Common across invocations of metaprogram (for harness and for app)
 	set(META_PROG_ARGS
 		--platform ${FARG_PLATFORM}
+		--python-path "${CMAKE_CURRENT_SOURCE_DIR}:${Python_SITELIB}:${FARG_EXTRA_PYTHONPATH}"
 	)
 	set(META_PROG_OPTS
 		C_KERNEL_SOURCES ${FARG_C_KERNEL_SOURCES}
@@ -96,6 +98,7 @@ function(casper_add_exec target meta_prog)
 	#add_custom_target(${target}.train DEPENDS ${target}.models/timestamp)
 
 	## Run the meta-program to generate main application binary
+	# TODO: burn the EXTRA_PYTHONPATH into the metaprogram somehow
 	add_custom_command(OUTPUT ${target}.ll ${target}.args
 		COMMAND ${meta_prog} -o ${target}.ll
 			--build-args ${target}.args

@@ -7,6 +7,7 @@
 #include "tune.h"
 #include "halide.h"
 #include "mlir.h"
+#include "python.h"
 
 namespace {
 
@@ -37,6 +38,14 @@ void composeArgsFile(cac::TaskGraph &tg, cac::KnowledgeBase &db,
 		fout << nodeType.id << " ";
 	}
 	fout << std::endl;
+}
+
+void compilePyGeneratedTasks(cac::TaskGraph &tg, const cac::Options &opts) {
+	cac::py::init(opts.pythonPath);
+	for (auto &gen : tg.pyGenerators) {
+		cac::py::launch(gen->module, gen->func, 0, NULL);
+	}
+	cac::py::finalize();
 }
 
 } // namespace anon
@@ -74,6 +83,9 @@ void compile(TaskGraph &tg, const Options &opts) {
 			variantIds.push_back(vId);
 		}
 	}
+
+	compilePyGeneratedTasks(tg, opts);
+
 	if (opts.buildArgsFile.size())
 		composeArgsFile(tg, db, halideLibs, opts.buildArgsFile);
 	cac::emitLLVMIR(opts.llOutputFile, tg, variantIds,

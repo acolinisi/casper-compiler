@@ -99,6 +99,12 @@ Task& TaskGraph::createTask(std::unique_ptr<Task> task, std::vector<Task*> deps)
 	return *tasks.back();
 }
 
+void TaskGraph::registerPyGenerator(const std::string &mod,
+		const std::string &func) {
+	std::unique_ptr<PyGenerator> gen(new PyGenerator{mod, func});
+	pyGenerators.push_back(std::move(gen));
+}
+
 void TaskGraph::setDatPrint(bool enable) {
 	datPrintEnabled = enable;
 }
