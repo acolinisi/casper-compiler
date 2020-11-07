@@ -36,8 +36,20 @@ verbose = False
 
 solution_out = None
 
+def generate():
+    # TODO: should not need to actually create the mesh
+    mesh = CahnHilliardProblem.make_mesh(mesh_size)
+    init_loop, mass_loops, hats_loops, assign_loops, u, u0, solver = \
+            CahnHilliardProblem.do_setup(mesh, pc=preconditioner,
+            degree=degree, dt=dt, theta=theta,
+            lmbda=lmbda, ksp=ksp, inner_ksp=inner_ksp,
+            maxit=max_iterations, verbose=verbose,
+            # TODO: shouldn't be exposed to the developer
+            out_lib_dir=os.path.join(os.getcwd(), 'fd_kernels'))
+
 def solve_ch(res):
     mesh = CahnHilliardProblem.make_mesh(mesh_size)
+    # TODO: not everything in do_setup needs to be done
     init_loop, mass_loops, hats_loops, assign_loops, u, u0, solver = \
             CahnHilliardProblem.do_setup(mesh, pc=preconditioner,
             degree=degree, dt=dt, theta=theta,

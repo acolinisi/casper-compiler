@@ -10,6 +10,8 @@ int main(int argc, char **argv) {
 
 	TaskGraph tg{"ch"};
 
+	tg.registerPyGenerator("kern", "generate");
+
 	PyObj* sol = &tg.createPyObj();
 
 	Task& task_fem = tg.createTask(PyKernel("kern", "solve_ch"), {sol});

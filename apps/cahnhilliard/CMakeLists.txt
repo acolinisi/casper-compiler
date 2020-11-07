@@ -13,6 +13,7 @@ casper_add_exec(ch ch.meta
 find_package(Python COMPONENTS Interpreter REQUIRED) # for Python_SITELIB
 
 # Run the target program (test target)
+# TODO: burn the EXTRA_PYTHONPATH into the metaprogram somehow
 add_custom_target(ch.run
   ${CMAKE_COMMAND} -E env
     EXTRA_PYTHONPATH="${CMAKE_CURRENT_SOURCE_DIR}:${Python_SITELIB}"
