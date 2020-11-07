@@ -13,13 +13,8 @@ casper_add_exec(ch ch.meta
 find_package(Python COMPONENTS Interpreter REQUIRED) # for Python_SITELIB
 
 # Run the target program (test target)
-#add_custom_target(ch.run COMMAND ${CMAKE_COMMAND} -E env
-#  PY_KERNEL_PATH="${CMAKE_CURRENT_SOURCE_DIR}:${Python_SITELIB}" ./ch
-#  DEPENDS ch)
-
-# Run the target program (test target)
 add_custom_target(ch.run
   ${CMAKE_COMMAND} -E env
-    PY_KERNEL_PATH="${CMAKE_CURRENT_SOURCE_DIR}:${Python_SITELIB}"
+    EXTRA_PYTHONPATH="${CMAKE_CURRENT_SOURCE_DIR}:${Python_SITELIB}"
     mpirun -n 2 ${ch_BUILD_DIR}/ch
   DEPENDS ${ch_BUILD_DIR}/ch)

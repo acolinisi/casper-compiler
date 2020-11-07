@@ -11,5 +11,5 @@ find_package(Python COMPONENTS Interpreter REQUIRED) # for Python_SITELIB
 
 # Run the target program (test target)
 add_custom_target(cavity_run COMMAND ${CMAKE_COMMAND} -E env
-  PY_KERNEL_PATH="${CMAKE_CURRENT_SOURCE_DIR}:${Python_SITELIB}" ./cavity
+  EXTRA_PYTHONPATH="${CMAKE_CURRENT_SOURCE_DIR}:${Python_SITELIB}" ./cavity
   DEPENDS cavity)

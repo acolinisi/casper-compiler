@@ -20,7 +20,7 @@ char *concat_paths(const char *p1, const char *p2) {
 }
 
 void set_extra_python_path() {
-	const char *extra_py_path = getenv("PY_KERNEL_PATH");
+	const char *extra_py_path = getenv("EXTRA_PYTHONPATH");
 	if (extra_py_path) {
 		wchar_t *def_py_path_w = Py_GetPath();
 		char *def_py_path = Py_EncodeLocale(def_py_path_w, NULL);
@@ -118,7 +118,7 @@ int _crt_py_launch(const char *py_module, const char *py_func,
 
 #if 0 // TODO: mode for file path without function
 	char kern_fname[1024];
-	const char *py_path = getenv("PY_KERNEL_PATH");
+	const char *py_path = getenv("EXTRA_PYTHONPATH");
 	if (py_path) {
 		kern_fname[0] = '\0';
 		strcat(kern_fname, py_path);
