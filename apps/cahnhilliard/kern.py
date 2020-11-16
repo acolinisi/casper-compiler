@@ -171,15 +171,17 @@ def generate():
             out_lib_dir=os.path.join(os.getcwd(), 'fd_kernels'))
 
     # trigger compilation for ParLoop futures
-    loops = [init_loop] + [l for l in assign_loops] + \
-            [l for l in mass_loops] + [l for l in hats_loops] + \
-            [l for l in solver._ctx._assemble_jac] + \
-            [l for l in solver._ctx._assemble_residual]
+    loops = dict(
+            init=[init_loop],
+            assign=[l for l in assign_loops],
+            mass=[l for l in mass_loops],
+            hats=[l for l in hats_loops],
+            jac=[l for l in solver._ctx._assemble_jac],
+            residual=[l for l in solver._ctx._assemble_residual]
+            )
     if solver._ctx.Jp is not None:
-        loops += [l for l in solver._ctx._assemble_pjac]
-    for loop in loops:
-        if hasattr(loop, "compute"): # some are funcs
-            loop._jitmodule
+        loops["pjac"]=[l for l in solver._ctx._assemble_pjac]
+    return loops
 
 # TODO: can the state object be any user-defined class instead of dict?
 def setup(state):
