@@ -145,17 +145,6 @@ def do_setup(mesh, pc='fieldsplit', degree=1, theta=0.5, dt=5.0e-06,
 
     assign_loops = u0.assign(u, compute=False)
 
-    # trigger compilation for ParLoop futures
-    loops = [init_loop] + [l for l in assign_loops] + \
-            [l for l in mass_loops] + [l for l in hats_loops] + \
-            [l for l in solver._ctx._assemble_jac] + \
-            [l for l in solver._ctx._assemble_residual]
-    if solver._ctx.Jp is not None:
-        loops += [l for l in solver._ctx._assemble_pjac]
-    for loop in loops:
-        if hasattr(loop, "compute"): # some are funcs
-            loop._jitmodule
-
     return init_loop, mass_loops, hats_loops, assign_loops, \
             u, u0, solver
 
@@ -179,6 +168,17 @@ def generate():
             maxit=max_iterations, verbose=verbose,
             # TODO: shouldn't be exposed to the developer
             out_lib_dir=os.path.join(os.getcwd(), 'fd_kernels'))
+
+    # trigger compilation for ParLoop futures
+    loops = [init_loop] + [l for l in assign_loops] + \
+            [l for l in mass_loops] + [l for l in hats_loops] + \
+            [l for l in solver._ctx._assemble_jac] + \
+            [l for l in solver._ctx._assemble_residual]
+    if solver._ctx.Jp is not None:
+        loops += [l for l in solver._ctx._assemble_pjac]
+    for loop in loops:
+        if hasattr(loop, "compute"): # some are funcs
+            loop._jitmodule
 
 # TODO: can the state object be any user-defined class instead of dict?
 def setup(state):
