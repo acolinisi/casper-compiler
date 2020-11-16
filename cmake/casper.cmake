@@ -37,7 +37,7 @@ function(casper_add_exec target meta_prog)
 	# Common across invocations of metaprogram (for harness and for app)
 	set(META_PROG_ARGS
 		--platform ${FARG_PLATFORM}
-		--python-path "${CMAKE_CURRENT_SOURCE_DIR}:${CAC_PY_DIR}:${Python_SITELIB}:${FARG_EXTRA_PYTHONPATH}"
+		--python-path "${CMAKE_CURRENT_SOURCE_DIR}:${CAC_PYAPI_DIR}:${CAC_PY_DIR}:${Python_SITELIB}:${FARG_EXTRA_PYTHONPATH}"
 	)
 	set(META_PROG_OPTS
 		C_KERNEL_SOURCES ${FARG_C_KERNEL_SOURCES}
