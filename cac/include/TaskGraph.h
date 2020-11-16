@@ -90,11 +90,29 @@ namespace cac {
 	};
 	class PyTask : public Task {
 	public:
+		enum Type {
+			Function,
+			Generated
+		};
+
+	public:
+
+		PyTask(PyTask::Type type, const std::string &module,
+			const std::string &func, std::vector<Value *> args);
 		PyTask(const std::string &module, const std::string &func,
 			std::vector<Value *> args);
 	public:
+		enum Type type;
 		std::string module;
 		std::unique_ptr<PyTaskImpl> impl;
+	};
+	class PyGenedTask : public PyTask {
+	public:
+		PyGenedTask(const std::string &module,
+				const std::string &kernel,
+			std::vector<Value *> args);
+	public:
+		std::string kernel;
 	};
 
 	class Kernel {
@@ -116,6 +134,14 @@ namespace cac {
 	public:
 		PyKernel(const std::string &module, const std::string &func)
 			: Kernel(func), module(module) { }
+	public:
+		std::string module;
+	};
+	class PyGenedKernel : public Kernel {
+	public:
+		PyGenedKernel(const std::string &module,
+				const std::string &kernelName)
+			: Kernel(kernelName), module(module) { }
 	public:
 		std::string module;
 	};
@@ -141,6 +167,8 @@ namespace cac {
 		Task& createTask(CKernel kern, std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
 		Task& createTask(PyKernel kern, std::vector<Value *> args = {},
+				std::vector<Task *> deps = {});
+		Task& createTask(PyGenedKernel kern, std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
 
 		// There's a one-to-many relationship between generators and

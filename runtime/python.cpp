@@ -101,6 +101,12 @@ void *_crt_py_alloc_obj()
 }
 
 // TODO: can builder access PyObject* type somhow?
+void *_crt_py_alloc_str(const char *s)
+{
+	return PyUnicode_FromString(s);
+}
+
+// TODO: can builder access PyObject* type somhow?
 void _crt_py_free_obj(void *obj)
 {
 	PyObject *pyObj = static_cast<PyObject *>(obj);
@@ -187,7 +193,14 @@ int py_launch(const char *py_module, const char *py_func,
 	return 0;
 }
 
-int _crt_py_launch(const char *py_module, const char *py_func,
+// TODO: figure out how to define size-less array type in LowerToLLVM.cpp
+int _crt_py_launch2(const char *py_module, const char *py_func,
+		size_t num_args, void *args[num_args])
+{
+	return py_launch(py_module, py_func,
+			num_args, (PyObject **)args, NULL);
+}
+int _crt_py_launch3(const char *py_module, const char *py_func,
 		size_t num_args, void *args[num_args])
 {
 	return py_launch(py_module, py_func,

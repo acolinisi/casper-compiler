@@ -433,11 +433,15 @@ public:
     auto llvmPtrArrTy = LLVM::LLVMType::getArrayTy(llvmPtrTy,
         operands.size());
 
-    std::string launchPyFunc{LAUNCH_PY_FUNC};
+    std::ostringstream launchPyFuncS;
+    launchPyFuncS << LAUNCH_PY_FUNC << operands.size();
+    std::string launchPyFunc = launchPyFuncS.str();
+
     if (!module.lookupSymbol<LLVM::LLVMFuncOp>(launchPyFunc)) {
       auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmVoidTy,
           {/* module */ llvmPtrTy, /* func */ llvmPtrTy,
-          /* num_args */ llvmSizeTy, /* args */ llvmPtrArrTy.getPointerTo()},
+          /* num_args */ llvmSizeTy,
+          /* args */ llvmPtrArrTy.getPointerTo()},
           /*isVarArg*/ false);
 
       // Insert the function declaration into the body of the parent module.

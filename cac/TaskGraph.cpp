@@ -6,10 +6,19 @@ namespace cac {
 HalideTask::HalideTask(const std::string &func, std::vector<Value *> args)
 	: Task(Task::Halide, func, args), impl(new HalideTaskImpl()) {}
 
+PyTask::PyTask(PyTask::Type type, const std::string &module,
+	const std::string &func, std::vector<Value *> args)
+	: Task(Task::Python, func, args), type(type),
+	module(module), impl(new PyTaskImpl()) {}
+
 PyTask::PyTask(const std::string &module, const std::string &func,
 	std::vector<Value *> args)
-	: Task(Task::Python, func, args), module(module),
-	impl(new PyTaskImpl()) {}
+	: PyTask(PyTask::Function, module, func, args) {}
+
+PyGenedTask::PyGenedTask(const std::string &module,
+		const std::string &kernel,
+	std::vector<Value *> args)
+	: PyTask(PyTask::Generated, module, "", args), kernel(kernel) {}
 
 Value::Value(ValueImpl *impl) : impl(impl) {}
 Value::~Value() {
@@ -86,6 +95,12 @@ Task& TaskGraph::createTask(PyKernel kern, std::vector<Value *> args,
 				std::vector<Task*> deps)
 {
 	std::unique_ptr<Task> task(new PyTask(kern.module, kern.func, args));
+	return createTask(std::move(task), deps);
+}
+Task& TaskGraph::createTask(PyGenedKernel kern, std::vector<Value *> args,
+				std::vector<Task*> deps)
+{
+	std::unique_ptr<Task> task(new PyGenedTask(kern.module, kern.func, args));
 	return createTask(std::move(task), deps);
 }
 Task& TaskGraph::createTask(HalideKernel kern, std::vector<Value *> args,

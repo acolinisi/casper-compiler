@@ -21,21 +21,23 @@ using namespace mlir;
 namespace {
 
 // Traverse the task graph in depth-first order
-void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
-    std::vector<unsigned> variantIds, bool printDat, bool profilingHarness)
+void invokeKernels(OpBuilder &builder, MLIRContext &context,
+    mlir::LLVM::LLVMDialect *llvmDialect, cac::Task& task,
+    std::vector<unsigned> variantIds, bool printDat, bool profilingHarness,
+    mlir::LLVM::LLVMFuncOp pyAllocStrFunc)
 {
   // Constant dat; TODO: support non-constant buffer
 
   for (cac::Task *dep : task.deps) {
     if (!dep->visited)
-      invokeKernels(builder, context, *dep, variantIds, printDat,
-	  profilingHarness);
+      invokeKernels(builder, context, llvmDialect, *dep, variantIds, printDat,
+	  profilingHarness, pyAllocStrFunc);
   }
 
   // Invoke the kernel
+  auto funcId = Identifier::get(StringRef("func"), &context);
   auto funcAttr = StringAttr::get(StringRef(task.func), &context);
-  NamedAttribute funcNAttr(Identifier::get(StringRef("func"), &context),
-      funcAttr);
+  NamedAttribute funcNAttr(funcId, funcAttr);
 
   std::vector<Attribute> variants;
   for (auto &variantId : variantIds) {
@@ -51,6 +53,8 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
     args.push_back(val->getImpl()->ref);
   }
 
+  auto loc = builder.getUnknownLoc();
+
   // We want TaskGraph to be decoupled from compilation implementation, so
   // we can't put these actions into a virtual method on the task objects.
   // TODO: switch to polymorphism, while still decoupling using impl ptr?
@@ -60,7 +64,7 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
 	  profilingHarness);
       NamedAttribute profileNAttr(Identifier::get(StringRef("profile"),
 	    &context), profileAttr);
-      builder.create<toy::HalideKernelOp>(builder.getUnknownLoc(),
+      builder.create<toy::HalideKernelOp>(loc,
 	ArrayRef<Type>{}, ValueRange(args),
 	ArrayRef<NamedAttribute>{funcNAttr, variantsNAttr, profileNAttr});
       break;
@@ -72,18 +76,56 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context, cac::Task& task,
       break;
   case cac::Task::Python: {
       cac::PyTask& pyTask = static_cast<cac::PyTask&>(task);
-      auto pyModAttr = StringAttr::get(StringRef(pyTask.module), &context);
-      NamedAttribute pyModNAttr(Identifier::get(StringRef("module"),
-	    &context), pyModAttr);
+      std::vector<NamedAttribute> attrs;
+
+      attrs.push_back(variantsNAttr);
 
       std::vector<mlir::Value> pyArgs{pyTask.impl->generatorContext};
+
+      if (pyTask.type == cac::PyTask::Generated) {
+	cac::PyGenedTask& pyGenedTask =
+	  static_cast<cac::PyGenedTask&>(pyTask);
+
+	auto pyModAttr = StringAttr::get(StringRef("casper"), &context);
+	NamedAttribute pyModNAttr(Identifier::get(StringRef("module"),
+	      &context), pyModAttr);
+	attrs.push_back(pyModNAttr);
+
+	auto kernelAttr = StringAttr::get(StringRef(pyGenedTask.kernel),
+	    &context);
+	NamedAttribute kernelNAttr(Identifier::get(StringRef("kernel"),
+	      &context), kernelAttr);
+	attrs.push_back(kernelNAttr);
+
+	// helper function name is in casper.py
+	auto pyFuncAttr = StringAttr::get(StringRef("invoke_task_by_name"),
+	    &context);
+	NamedAttribute pyFuncNAttr(funcId, pyFuncAttr);
+	attrs.push_back(pyFuncNAttr);
+
+	mlir::Value kernelNameStr = toy::allocString(builder, llvmDialect,
+	  loc, pyGenedTask.kernel);
+	auto callOp = builder.create<LLVM::CallOp>(loc, pyAllocStrFunc,
+	    ValueRange{kernelNameStr});
+	assert(callOp.getNumResults() == 1);
+	mlir::Value kernelNamePyStr = callOp.getResult(0);
+
+	pyArgs.push_back(kernelNamePyStr);
+
+      } else {
+	auto pyModAttr = StringAttr::get(StringRef(pyTask.module), &context);
+	NamedAttribute pyModNAttr(Identifier::get(StringRef("module"),
+	      &context), pyModAttr);
+	attrs.push_back(pyModNAttr);
+	attrs.push_back(funcNAttr);
+      }
+
       for (auto &arg : args) {
 	pyArgs.push_back(arg);
       }
 
       builder.create<toy::PyKernelOp>(builder.getUnknownLoc(),
-	ArrayRef<Type>{}, ValueRange(pyArgs),
-	ArrayRef<NamedAttribute>{pyModNAttr, funcNAttr, variantsNAttr});
+	ArrayRef<Type>{}, ValueRange(pyArgs), attrs);
       break;
   }
   default:
@@ -134,6 +176,18 @@ mlir::LLVM::LLVMFuncOp declareTakePyObjFunc(OpBuilder &builder,
       llvmFnType);
 }
 
+mlir::LLVM::LLVMFuncOp declareTakeStrRetPyObjFunc(OpBuilder &builder,
+    OwningModuleRef &module, mlir::LLVM::LLVMDialect *llvmDialect,
+    StringRef func)
+{
+  auto llvmVoidPtrTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
+  auto llvmCharPtrTy = LLVM::LLVMType::getInt8Ty(llvmDialect).getPointerTo();
+  auto llvmFnType = LLVM::LLVMType::getFunctionTy(llvmCharPtrTy,
+      {llvmVoidPtrTy}, /*isVarArg*/ false);
+  return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
+      llvmFnType);
+}
+
 mlir::LLVM::LLVMFuncOp declareInitProfilingFunc(OpBuilder &builder,
     OwningModuleRef &module, mlir::LLVM::LLVMDialect *llvmDialect)
 {
@@ -169,6 +223,8 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
       "_crt_py_alloc_obj");
   auto pyFreeObjFunc = declareTakePyObjFunc(builder, module, llvmDialect,
       "_crt_py_free_obj");
+  auto pyAllocStrFunc = declareTakeStrRetPyObjFunc(builder, module,
+      llvmDialect, "_crt_py_alloc_str");
   auto pyConstructKernelsFunc = declareRetPyObjFunc(builder, module,
       llvmDialect, "_crt_py_construct_kernels");
 
@@ -324,8 +380,8 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
   //  std::unique_ptr<Task>& root = *rooti;
   for (std::unique_ptr<cac::Task>& root : tg.tasks) {
     if (!root->visited)
-      invokeKernels(builder, context, *root, variantIds, tg.datPrintEnabled,
-	  profilingHarness);
+      invokeKernels(builder, context, llvmDialect, *root, variantIds,
+	  tg.datPrintEnabled, profilingHarness, pyAllocStrFunc);
   }
 
   if (profilingHarness) {
