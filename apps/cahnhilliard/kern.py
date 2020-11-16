@@ -154,22 +154,9 @@ def generate():
     # need to define the class in a py module offered by Casper to the app)
     return tasks, solver, dict(u=u, u0=u0)
 
-def init(ctx, state):
-    invoke_task(ctx[0]["init"])
-
-def assemble_mass(ctx, state):
-    mass_m = invoke_task(ctx[0]["mass"])
-    state["mass"] = mass_m.M.handle
-
-def assemble_hats(ctx, state):
-    hats_m = invoke_task(ctx[0]["hats"])
-    state["hats"] = hats_m.M.handle
-
 def solve(ctx, state):
     out_file = File(solution_out) if solution_out else None
 
-    # TODO: metaprogram should invoke the above tasks and save result
-    # into context
     mass = state["mass"]
     hats = state["hats"]
 

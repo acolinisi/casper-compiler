@@ -14,12 +14,12 @@ int main(int argc, char **argv) {
 
 	PyObj* state = &tg.createPyObj();
 
-	Task& task_init = tg.createTask(PyKernel("kern", "init"), {state});
-	Task& task_a_mass = tg.createTask(PyKernel("kern", "assemble_mass"),
+	Task& task_init = tg.createTask(PyGenedKernel("kern", "init"), {state});
+	Task& task_mass = tg.createTask(PyGenedKernel("kern", "mass"),
 			{state}, {&task_init});
-	Task& task_a_hats = tg.createTask(PyKernel("kern", "assemble_hats"),
-			{state}, {&task_a_mass});
+	Task& task_hats = tg.createTask(PyGenedKernel("kern", "hats"),
+			{state}, {&task_mass});
 	Task& task_solve = tg.createTask(PyKernel("kern", "solve"), {state},
-			{&task_a_hats});
+			{&task_hats});
 	return tryCompile(tg, opts);
 }
