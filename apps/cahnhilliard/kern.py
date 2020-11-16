@@ -180,7 +180,6 @@ def solve(ctx, state):
     mass = state["mass"]
     hats = state["hats"]
 
-    assign_loops = ctx[0]["assign"]
     u = ctx[2]["u"]
     u0 = ctx[2]["u0"]
     solver = ctx[1]
@@ -211,8 +210,7 @@ def solve(ctx, state):
     pc.setFieldSplitSchurPreType(PETSc.PC.SchurPreType.USER, pc_schur)
 
     for step in range(steps):
-        for l in assign_loops:
-            l.compute()
+        invoke_loops(ctx[0]["assign"])
         solver.solve()
         if out_file is not None:
             out_file << (u.split()[0], step)
