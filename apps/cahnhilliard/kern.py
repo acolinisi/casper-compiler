@@ -16,6 +16,7 @@ import time
 os.environ["OMP_NUM_THREADS"] = str(1)
 
 from firedrake import *
+from casper import *
 
 mesh_size = 64
 dim = 2
@@ -32,14 +33,6 @@ compute_norms = False # TODO
 verbose = False
 
 solution_out = None
-
-def invoke_task(loops):
-    for l in loops:
-        if hasattr(l, "compute"): # some are funcs
-            r = l.compute()
-        else:
-            r = l()
-    return r
 
 def generate():
     tasks = dict()

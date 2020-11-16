@@ -16,7 +16,7 @@ find_package(Python COMPONENTS Interpreter REQUIRED) # for Python_SITELIB
 # TODO: burn the EXTRA_PYTHONPATH into the metaprogram somehow
 add_custom_target(ch.run
   ${CMAKE_COMMAND} -E env
-    EXTRA_PYTHONPATH="${CMAKE_CURRENT_SOURCE_DIR}:${Python_SITELIB}"
+    EXTRA_PYTHONPATH="${CMAKE_CURRENT_SOURCE_DIR}:${CAC_PYAPI_DIR}:${Python_SITELIB}"
     #mpirun -n 2 ${ch_BUILD_DIR}/ch
     ${ch_BUILD_DIR}/ch
   DEPENDS ${ch_BUILD_DIR}/ch)
