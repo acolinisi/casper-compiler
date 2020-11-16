@@ -106,7 +106,7 @@ mlir::LLVM::LLVMFuncOp declareVoidFunc(OpBuilder &builder,
   return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
       llvmFnType);
 }
-mlir::LLVM::LLVMFuncOp declareAllocObjFunc(OpBuilder &builder,
+mlir::LLVM::LLVMFuncOp declareRetPyObjFunc(OpBuilder &builder,
     OwningModuleRef &module, mlir::LLVM::LLVMDialect *llvmDialect,
     StringRef func)
 {
@@ -116,7 +116,7 @@ mlir::LLVM::LLVMFuncOp declareAllocObjFunc(OpBuilder &builder,
   return builder.create<LLVM::LLVMFuncOp>(module->getLoc(), func,
       llvmFnType);
 }
-mlir::LLVM::LLVMFuncOp declareFreeObjFunc(OpBuilder &builder,
+mlir::LLVM::LLVMFuncOp declareTakePyObjFunc(OpBuilder &builder,
     OwningModuleRef &module, mlir::LLVM::LLVMDialect *llvmDialect,
     StringRef func)
 {
@@ -159,9 +159,9 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
       "_crt_py_init");
   auto finPyFunc = declareVoidFunc(builder, module, llvmDialect,
       "_crt_py_finalize");
-  auto pyAllocObjFunc = declareAllocObjFunc(builder, module, llvmDialect,
+  auto pyAllocObjFunc = declareRetPyObjFunc(builder, module, llvmDialect,
       "_crt_py_alloc_obj");
-  auto pyFreeObjFunc = declareFreeObjFunc(builder, module, llvmDialect,
+  auto pyFreeObjFunc = declareTakePyObjFunc(builder, module, llvmDialect,
       "_crt_py_free_obj");
 
   LLVM::LLVMFuncOp initProfFunc, finProfFunc;
