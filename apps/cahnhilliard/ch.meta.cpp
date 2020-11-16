@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 	Task& task_mass = tg.createTask(PyGenedKernel("kern", "mass"),
 			{state}, {&task_init});
 	Task& task_hats = tg.createTask(PyGenedKernel("kern", "hats"),
-			{state}, {&task_mass});
+			{state}, {&task_init});
 	Task& task_solve = tg.createTask(PyKernel("kern", "solve"), {state},
 			{&task_hats});
 	return tryCompile(tg, opts);
