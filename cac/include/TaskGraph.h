@@ -18,6 +18,7 @@ namespace cac {
 	class DatImpl;
 	class PyObjImpl;
 	class HalideTaskImpl;
+	class PyTaskImpl;
 
 	class Value {
 	public:
@@ -90,10 +91,10 @@ namespace cac {
 	class PyTask : public Task {
 	public:
 		PyTask(const std::string &module, const std::string &func,
-			std::vector<Value *> args)
-			: Task(Task::Python, func, args), module(module) {}
+			std::vector<Value *> args);
 	public:
 		std::string module;
+		std::unique_ptr<PyTaskImpl> impl;
 	};
 
 	class Kernel {

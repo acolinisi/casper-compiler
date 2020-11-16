@@ -64,6 +64,11 @@ public:
   PyObjImpl();
 };
 
+class PyTaskImpl {
+public:
+    mlir::Value generatorContext;
+};
+
 class HalideTaskImpl {
 public:
 	std::vector<std::string> params;

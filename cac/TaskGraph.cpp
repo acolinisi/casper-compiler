@@ -6,6 +6,11 @@ namespace cac {
 HalideTask::HalideTask(const std::string &func, std::vector<Value *> args)
 	: Task(Task::Halide, func, args), impl(new HalideTaskImpl()) {}
 
+PyTask::PyTask(const std::string &module, const std::string &func,
+	std::vector<Value *> args)
+	: Task(Task::Python, func, args), module(module),
+	impl(new PyTaskImpl()) {}
+
 Value::Value(ValueImpl *impl) : impl(impl) {}
 Value::~Value() {
 	delete impl;

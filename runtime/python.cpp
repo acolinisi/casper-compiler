@@ -109,8 +109,9 @@ void _crt_py_free_obj(void *obj)
 
 // TODO: let py_func be optional
 // Borrows reference to each element of args[].
-int _crt_py_launch(const char *py_module, const char *py_func,
-		size_t num_args, void *args[num_args])
+int py_launch(const char *py_module, const char *py_func,
+		size_t num_args, PyObject *args[num_args],
+		PyObject **ret)
 {
 	printf("py_module: %s py_func: %s\n", py_module, py_func);
 
@@ -162,7 +163,11 @@ int _crt_py_launch(const char *py_module, const char *py_func,
 			Py_DECREF(f_args);
 			if (pValue != NULL) {
 				printf("call succeeded\n");
-				Py_DECREF(pValue);
+				if (ret != NULL) {
+					*ret = pValue;
+				} else {
+					Py_DECREF(pValue);
+				}
 			} else {
 				Py_DECREF(pFunc);
 				Py_DECREF(pModule);
@@ -180,6 +185,22 @@ int _crt_py_launch(const char *py_module, const char *py_func,
 	}
 
 	return 0;
+}
+
+int _crt_py_launch(const char *py_module, const char *py_func,
+		size_t num_args, void *args[num_args])
+{
+	return py_launch(py_module, py_func,
+			num_args, (PyObject **)args, NULL);
+}
+
+
+// TODO: take list of generators (module.function)
+// TODO: return a context that is passed to all tasks in this module
+PyObject *_crt_py_construct_kernels() {
+	PyObject *ctx;
+	int rc = py_launch("kern", "generate", 0, NULL, &ctx);
+	return ctx;
 }
 
 } // extern "C"

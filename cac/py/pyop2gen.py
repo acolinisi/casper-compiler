@@ -13,7 +13,7 @@ from firedrake import *
 def codegen(gen_module, gen_func):
     gen_mod = importlib.import_module(gen_module)
     print(f"codegen {gen_module}.{gen_func}")
-    explicit_loops, solver = gen_mod.generate()
+    explicit_loops, solver, state = gen_mod.generate()
     implicit_loops = dict(
             _jac=solver._ctx._assemble_jac,
             _residual=solver._ctx._assemble_residual
