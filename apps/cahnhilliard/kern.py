@@ -16,7 +16,7 @@ import time
 os.environ["OMP_NUM_THREADS"] = str(1)
 
 from firedrake import *
-from casper import *
+import casper
 
 mesh_size = 64
 dim = 2
@@ -137,18 +137,15 @@ def generate():
     trial = TrialFunction(V)
     test = TestFunction(V)
 
-    # TODO: wrap assemble with Casper to hide the mode args
-    tasks["mass"] = assemble(inner(trial, test)*dx,
-            collect_loops=True, allocate_only=False)
+    tasks["mass"] = casper.assemble(inner(trial, test)*dx)
 
     a = 1
     c = (dt * lmbda)/(1+dt * sigma)
 
-    tasks["hats"] = assemble(sqrt(a) * inner(trial, test)*dx + \
-            sqrt(c)*inner(grad(trial), grad(test))*dx, \
-            collect_loops=True, allocate_only=False)
+    tasks["hats"] = casper.assemble(sqrt(a) * inner(trial, test)*dx + \
+            sqrt(c)*inner(grad(trial), grad(test))*dx)
 
-    tasks["assign"] = u0.assign(u, compute=False)
+    tasks["assign"] = casper.assign(u0, u)
 
     # TODO: define a class (contract with Casper compiler, so
     # need to define the class in a py module offered by Casper to the app)
@@ -190,7 +187,7 @@ def solve(ctx, state):
     pc.setFieldSplitSchurPreType(PETSc.PC.SchurPreType.USER, pc_schur)
 
     for step in range(steps):
-        invoke_task(ctx[0]["assign"])
+        casper.invoke_task(ctx[0]["assign"])
         solver.solve()
         if out_file is not None:
             out_file << (u.split()[0], step)
