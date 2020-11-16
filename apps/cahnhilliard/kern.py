@@ -173,11 +173,11 @@ def generate():
     # trigger compilation for ParLoop futures
     loops = dict(
             init=[init_loop],
-            assign=[l for l in assign_loops],
-            mass=[l for l in mass_loops],
-            hats=[l for l in hats_loops],
-            jac=[l for l in solver._ctx._assemble_jac],
-            residual=[l for l in solver._ctx._assemble_residual]
+            assign=assign_loops,
+            mass=mass_loops,
+            hats=hats_loops,
+            jac=solver._ctx._assemble_jac,
+            residual=solver._ctx._assemble_residual
             )
     if solver._ctx.Jp is not None:
         loops["pjac"]=[l for l in solver._ctx._assemble_pjac]
