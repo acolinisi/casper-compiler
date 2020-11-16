@@ -117,8 +117,8 @@ void free_obj(void *obj)
 
 // TODO: let py_func be optional
 // Borrows reference to each element of args[].
-int launch(const std::string &py_module, const std::string &py_func,
-		size_t num_args, void *args[num_args])
+void launch(const std::string &py_module, const std::string &py_func,
+		size_t num_args, PyObject *args[num_args], PyObject **ret)
 {
 	std::cout << "py_module: " <<  py_module
 		<< "py_func: " <<  py_func << std::endl;
@@ -169,7 +169,10 @@ int launch(const std::string &py_module, const std::string &py_func,
 			pValue = PyObject_CallObject(pFunc, f_args);
 			Py_DECREF(f_args);
 			if (pValue != NULL) {
-				Py_DECREF(pValue);
+				if (ret != NULL)
+					*ret = pValue;
+				else
+					Py_DECREF(pValue);
 			} else {
 				Py_DECREF(pFunc);
 				Py_DECREF(pModule);
@@ -187,8 +190,6 @@ int launch(const std::string &py_module, const std::string &py_func,
 		std::cerr << "error: failed to load module: "
 			<< py_module << std::endl;
 	}
-
-	return 0;
 }
 
 } // namespace py
