@@ -18,6 +18,7 @@ os.environ["OMP_NUM_THREADS"] = str(1)
 from firedrake import *
 
 mesh_size = 64
+dim = 2
 preconditioner = 'fieldsplit'
 ksp = 'gmres'
 inner_ksp = 'preonly'
@@ -32,15 +33,18 @@ verbose = False
 
 solution_out = None
 
-def make_mesh(x, dim=2):
-    return UnitSquareMesh(x, x) if dim == 2 else UnitCubeMesh(x, x, x)
+def invoke_loops(loops):
+    for l in loops:
+        if hasattr(l, "compute"): # some are funcs
+            r = l.compute()
+        else:
+            r = l()
+    return r
 
-def do_setup(mesh, pc='fieldsplit', degree=1, theta=0.5, dt=5.0e-06,
-            lmbda=1.0e-02, maxit=1,
-            ksp='gmres', inner_ksp='preonly',
-            verbose=False):
+def generate():
+    tasks = dict()
 
-    params = {'pc_type': pc,
+    params = {'pc_type': preconditioner,
               'ksp_type': ksp,
               #'ksp_monitor': True,
               'snes_monitor': None,
@@ -74,15 +78,22 @@ def do_setup(mesh, pc='fieldsplit', degree=1, theta=0.5, dt=5.0e-06,
               'pc_fieldsplit_schur_factorization_type': 'lower',
               'pc_fieldsplit_schur_precondition': 'user',
               'fieldsplit_0_ksp_type': inner_ksp,
-              'fieldsplit_0_ksp_max_it': maxit,
+              'fieldsplit_0_ksp_max_it': max_iterations,
               'fieldsplit_0_pc_type': 'hypre',
               'fieldsplit_1_ksp_type': inner_ksp,
-              'fieldsplit_1_ksp_max_it': maxit,
+              'fieldsplit_1_ksp_max_it': max_iterations,
               'fieldsplit_1_pc_type': 'mat'}
     if verbose:
         params['ksp_monitor'] = True
         params['snes_view'] = True
         params['snes_monitor'] = True
+
+    # TODO: on the generator path, this shouldn't distribute the mesh
+    if dim == 2:
+        mesh = UnitSquareMesh(mesh_size, mesh_size)
+    else:
+        mesh = UnitCubeMesh(mesh_size, mesh_size, mesh_size)
+
     V = FunctionSpace(mesh, "Lagrange", degree)
     ME = V*V
 
@@ -104,9 +115,9 @@ def do_setup(mesh, pc='fieldsplit', degree=1, theta=0.5, dt=5.0e-06,
     user_code = """int __rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &__rank);
     srandom(2 + __rank);"""
-    init_loop = par_loop(init_code, direct, {'A': (u[0], WRITE)},
+    tasks["init"] = [par_loop(init_code, direct, {'A': (u[0], WRITE)},
              headers=["#include <stdlib.h>"], user_code=user_code,
-             compute=False)
+             compute=False)]
 
     u.dat.data_ro
 
@@ -133,43 +144,19 @@ def do_setup(mesh, pc='fieldsplit', degree=1, theta=0.5, dt=5.0e-06,
     trial = TrialFunction(V)
     test = TestFunction(V)
 
-    mass_loops = assemble(inner(trial, test)*dx,
+    # TODO: wrap assemble with Casper to hide the mode args
+    tasks["mass"] = assemble(inner(trial, test)*dx,
             collect_loops=True, allocate_only=False)
 
     a = 1
     c = (dt * lmbda)/(1+dt * sigma)
 
-    hats_loops = assemble(sqrt(a) * inner(trial, test)*dx + sqrt(c)*inner(grad(trial), grad(test))*dx, collect_loops=True, allocate_only=False)
+    tasks["hats"] = assemble(sqrt(a) * inner(trial, test)*dx + \
+            sqrt(c)*inner(grad(trial), grad(test))*dx, \
+            collect_loops=True, allocate_only=False)
 
-    assign_loops = u0.assign(u, compute=False)
+    tasks["assign"] = u0.assign(u, compute=False)
 
-    return init_loop, mass_loops, hats_loops, assign_loops, \
-            u, u0, solver
-
-
-def invoke_loops(loops):
-    for l in loops:
-        if hasattr(l, "compute"): # some are funcs
-            r = l.compute()
-        else:
-            r = l()
-    return r
-
-
-def generate():
-    mesh = make_mesh(mesh_size)
-    init_loop, mass_loops, hats_loops, assign_loops, u, u0, solver = \
-            do_setup(mesh, pc=preconditioner,
-            degree=degree, dt=dt, theta=theta,
-            lmbda=lmbda, ksp=ksp, inner_ksp=inner_ksp,
-            maxit=max_iterations, verbose=verbose)
-
-    tasks = dict(
-            init=[init_loop],
-            assign=assign_loops,
-            mass=mass_loops,
-            hats=hats_loops,
-            )
     # TODO: define a class (contract with Casper compiler, so
     # need to define the class in a py module offered by Casper to the app)
     return tasks, solver, dict(u=u, u0=u0)
