@@ -9,6 +9,8 @@
 #include "mlir.h"
 #include "python.h"
 
+#include <Python.h>
+
 namespace {
 
 void composeArgsFile(cac::TaskGraph &tg, cac::KnowledgeBase &db,
@@ -43,7 +45,14 @@ void composeArgsFile(cac::TaskGraph &tg, cac::KnowledgeBase &db,
 void compilePyGeneratedTasks(cac::TaskGraph &tg, const cac::Options &opts) {
 	cac::py::init(opts.pythonPath);
 	for (auto &gen : tg.pyGenerators) {
-		cac::py::launch(gen->module, gen->func, 0, NULL);
+		PyObject *args[] = {
+			PyUnicode_FromString(gen->module.c_str()),
+			PyUnicode_FromString(gen->func.c_str()),
+		};
+		cac::py::launch("pyop2gen", "codegen",
+				sizeof(args)/sizeof(args[0]), args, NULL);
+		Py_DECREF(args[0]);
+		Py_DECREF(args[1]);
 	}
 	cac::py::finalize();
 }
