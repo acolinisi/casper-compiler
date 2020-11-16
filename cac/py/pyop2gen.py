@@ -1,4 +1,14 @@
+import os
 import importlib
+
+# output dir for compiled kernel libraries: working dir of metaprog
+# must be set before importing (see firedrake_configuration), and
+# must use env vars, because firedrake resets config when re-imported
+out_dir = "fd_kernels"
+os.environ["PYOP2_CACHE_DIR"] = os.path.join(out_dir, "pyop2")
+os.environ["FIREDRAKE_TSFC_KERNEL_CACHE_DIR"] = os.path.join(out_dir, "tsfc")
+
+from firedrake import *
 
 def codegen(gen_module, gen_func):
     gen_mod = importlib.import_module(gen_module)

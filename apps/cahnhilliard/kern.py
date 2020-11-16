@@ -16,7 +16,6 @@ import time
 os.environ["OMP_NUM_THREADS"] = str(1)
 
 from firedrake import *
-from pyop2.configuration import configuration
 
 mesh_size = 64
 preconditioner = 'fieldsplit'
