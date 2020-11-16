@@ -33,7 +33,7 @@ verbose = False
 
 solution_out = None
 
-def invoke_loops(loops):
+def invoke_task(loops):
     for l in loops:
         if hasattr(l, "compute"): # some are funcs
             r = l.compute()
@@ -162,14 +162,14 @@ def generate():
     return tasks, solver, dict(u=u, u0=u0)
 
 def init(ctx, state):
-    invoke_loops(ctx[0]["init"])
+    invoke_task(ctx[0]["init"])
 
 def assemble_mass(ctx, state):
-    mass_m = invoke_loops(ctx[0]["mass"])
+    mass_m = invoke_task(ctx[0]["mass"])
     state["mass"] = mass_m.M.handle
 
 def assemble_hats(ctx, state):
-    hats_m = invoke_loops(ctx[0]["hats"])
+    hats_m = invoke_task(ctx[0]["hats"])
     state["hats"] = hats_m.M.handle
 
 def solve(ctx, state):
@@ -210,7 +210,7 @@ def solve(ctx, state):
     pc.setFieldSplitSchurPreType(PETSc.PC.SchurPreType.USER, pc_schur)
 
     for step in range(steps):
-        invoke_loops(ctx[0]["assign"])
+        invoke_task(ctx[0]["assign"])
         solver.solve()
         if out_file is not None:
             out_file << (u.split()[0], step)
