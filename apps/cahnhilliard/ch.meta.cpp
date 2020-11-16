@@ -12,8 +12,10 @@ int main(int argc, char **argv) {
 
 	tg.registerPyGenerator("kern", "generate");
 
-	PyObj* sol = &tg.createPyObj();
+	PyObj* state = &tg.createPyObj();
 
-	Task& task_fem = tg.createTask(PyKernel("kern", "solve_ch"), {sol});
+	Task& task_init = tg.createTask(PyKernel("kern", "init_ch"), {state});
+	Task& task_fem = tg.createTask(PyKernel("kern", "solve_ch"), {state},
+			{&task_init});
 	return tryCompile(tg, opts);
 }

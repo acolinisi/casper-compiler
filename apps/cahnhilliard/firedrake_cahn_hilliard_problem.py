@@ -137,25 +137,9 @@ class CahnHilliardProblem:
             u0.assign(u)
             solver.solve()
 
-    def do_solve(init_loop, mass_loops, hats_loops, assign_loops,
+    def do_solve(mass, hats, assign_loops,
             u, u0, solver, steps,
             maxit, inner_ksp, compute_norms=False, out_file=None):
-
-        def invoke_loops(loops):
-            for l in loops:
-                if hasattr(l, "compute"): # some are funcs
-                    r = l.compute()
-                else:
-                    r = l()
-            return r
-
-        invoke_loops([init_loop])
-
-        mass_m = invoke_loops(mass_loops)
-        mass = mass_m.M.handle
-
-        hats_m = invoke_loops(hats_loops)
-        hats = hats_m.M.handle
 
         from firedrake.petsc import PETSc
         ksp_hats = PETSc.KSP()
