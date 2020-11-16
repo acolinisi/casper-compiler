@@ -157,7 +157,6 @@ def invoke_loops(loops):
 
 
 def generate():
-    # TODO: should not need to actually create the mesh
     mesh = make_mesh(mesh_size)
     init_loop, mass_loops, hats_loops, assign_loops, u, u0, solver = \
             do_setup(mesh, pc=preconditioner,
@@ -165,55 +164,39 @@ def generate():
             lmbda=lmbda, ksp=ksp, inner_ksp=inner_ksp,
             maxit=max_iterations, verbose=verbose)
 
-    loops = dict(
+    tasks = dict(
             init=[init_loop],
             assign=assign_loops,
             mass=mass_loops,
             hats=hats_loops,
             )
-    return loops, solver
+    # TODO: define a class (contract with Casper compiler, so
+    # need to define the class in a py module offered by Casper to the app)
+    return tasks, solver, dict(u=u, u0=u0)
 
-# TODO: can the state object be any user-defined class instead of dict?
-def setup(state):
-    print("init_ch")
+def init(ctx, state):
+    invoke_loops(ctx[0]["init"])
 
-    mesh = make_mesh(mesh_size)
-    # TODO: not everything in do_setup needs to be done
-    init_loop, mass_loops, hats_loops, assign_loops, u, u0, solver = \
-            do_setup(mesh, pc=preconditioner,
-            degree=degree, dt=dt, theta=theta,
-            lmbda=lmbda, ksp=ksp, inner_ksp=inner_ksp,
-            maxit=max_iterations, verbose=verbose)
-
-    state["init_loop"] = init_loop
-    state["mass_loops"] = mass_loops
-    state["hats_loops"] = hats_loops
-    state["assign_loops"] = assign_loops
-
-    state["u"] = u
-    state["u0"] = u0
-    state["solver"] = solver
-
-def init(state):
-    invoke_loops([state["init_loop"]])
-
-def assemble_mass(state):
-    mass_m = invoke_loops(state["mass_loops"])
+def assemble_mass(ctx, state):
+    mass_m = invoke_loops(ctx[0]["mass"])
     state["mass"] = mass_m.M.handle
 
-def assemble_hats(state):
-    hats_m = invoke_loops(state["hats_loops"])
+def assemble_hats(ctx, state):
+    hats_m = invoke_loops(ctx[0]["hats"])
     state["hats"] = hats_m.M.handle
 
-def solve(state):
+def solve(ctx, state):
     out_file = File(solution_out) if solution_out else None
 
+    # TODO: metaprogram should invoke the above tasks and save result
+    # into context
     mass = state["mass"]
     hats = state["hats"]
-    assign_loops = state["assign_loops"]
-    u = state["u"]
-    u0 = state["u0"]
-    solver = state["solver"]
+
+    assign_loops = ctx[0]["assign"]
+    u = ctx[2]["u"]
+    u0 = ctx[2]["u0"]
+    solver = ctx[1]
 
     from firedrake.petsc import PETSc
     ksp_hats = PETSc.KSP()

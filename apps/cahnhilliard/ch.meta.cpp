@@ -14,9 +14,7 @@ int main(int argc, char **argv) {
 
 	PyObj* state = &tg.createPyObj();
 
-	Task& task_setup = tg.createTask(PyKernel("kern", "setup"), {state});
-	Task& task_init = tg.createTask(PyKernel("kern", "init"), {state},
-			{&task_setup});
+	Task& task_init = tg.createTask(PyKernel("kern", "init"), {state});
 	Task& task_a_mass = tg.createTask(PyKernel("kern", "assemble_mass"),
 			{state}, {&task_init});
 	Task& task_a_hats = tg.createTask(PyKernel("kern", "assemble_hats"),
