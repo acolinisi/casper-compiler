@@ -187,7 +187,7 @@ def solve(ctx, state):
     pc.setFieldSplitSchurPreType(PETSc.PC.SchurPreType.USER, pc_schur)
 
     for step in range(steps):
-        casper.invoke_task(ctx[0]["assign"])
+        casper.invoke_task(ctx, "assign", state)
         solver.solve()
         if out_file is not None:
             out_file << (u.split()[0], step)
