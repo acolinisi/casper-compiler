@@ -98,7 +98,7 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context,
 	attrs.push_back(kernelNAttr);
 
 	// helper function name is in casper.py
-	auto pyFuncAttr = StringAttr::get(StringRef("invoke_task_by_name"),
+	auto pyFuncAttr = StringAttr::get(StringRef("invoke_task"),
 	    &context);
 	NamedAttribute pyFuncNAttr(funcId, pyFuncAttr);
 	attrs.push_back(pyFuncNAttr);

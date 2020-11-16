@@ -1,6 +1,6 @@
 import firedrake
 
-def invoke_task(loops):
+def invoke_loops(loops):
     for l in loops:
         if hasattr(l, "compute"): # some are funcs
             r = l.compute()
@@ -8,9 +8,9 @@ def invoke_task(loops):
             r = l()
     return r
 
-def invoke_task_by_name(ctx, task, state):
+def invoke_task(ctx, task, state):
     print("invoke_task_by_name: task", task)
-    r = invoke_task(ctx[0][task])
+    r = invoke_loops(ctx[0][task])
     if isinstance(r, firedrake.matrix.Matrix):
         state[task] = r.M.handle
 
