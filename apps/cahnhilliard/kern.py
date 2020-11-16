@@ -38,9 +38,7 @@ def make_mesh(x, dim=2):
 def do_setup(mesh, pc='fieldsplit', degree=1, theta=0.5, dt=5.0e-06,
             lmbda=1.0e-02, maxit=1,
             ksp='gmres', inner_ksp='preonly',
-            verbose=False, out_lib_dir=None):
-    if out_lib_dir:
-        configuration['cache_dir'] = out_lib_dir
+            verbose=False):
 
     params = {'pc_type': pc,
               'ksp_type': ksp,
@@ -165,9 +163,7 @@ def generate():
             do_setup(mesh, pc=preconditioner,
             degree=degree, dt=dt, theta=theta,
             lmbda=lmbda, ksp=ksp, inner_ksp=inner_ksp,
-            maxit=max_iterations, verbose=verbose,
-            # TODO: shouldn't be exposed to the developer
-            out_lib_dir=os.path.join(os.getcwd(), 'fd_kernels'))
+            maxit=max_iterations, verbose=verbose)
 
     loops = dict(
             init=[init_loop],
