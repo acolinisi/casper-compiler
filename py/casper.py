@@ -14,3 +14,9 @@ def invoke_task_by_name(ctx, task, state):
     if isinstance(r, firedrake.matrix.Matrix):
         state[task] = r.M.handle
 
+def assemble(f):
+    return firedrake.assemble(f, collect_loops=True, allocate_only=False)
+
+def assign(dest, src):
+    return dest.assign(src, compute=False)
+
