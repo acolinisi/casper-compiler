@@ -345,7 +345,7 @@ public:
     StringRef func = funcAttr.getValue();
 
     auto kernRef = getOrInsertKernFunc(rewriter, parentModule,
-        func, op->getNumOperands(), llvmDialect);
+        func, operands, llvmDialect);
     auto kernOp = cast<toy::KernelOp>(op);
 
     rewriter.create<CallOp>(loc, kernRef, ArrayRef<Type>(), kernOp.input());
@@ -360,7 +360,8 @@ private:
   /// module if necessary.
   static FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
                                              ModuleOp module,
-                                             StringRef name, int numOpers,
+                                             StringRef name,
+                                             ArrayRef<Value> operands,
                                              LLVM::LLVMDialect *llvmDialect) {
     auto *context = module.getContext();
     if (!module.lookupSymbol<LLVM::LLVMFuncOp>(name)) {
@@ -372,14 +373,36 @@ private:
       auto llvmDTy = LLVM::LLVMType::getDoubleTy(llvmDialect);
 
       std::vector<LLVM::LLVMType> opers;
-      for (int i = 0; i < numOpers; ++i) {
-        opers.push_back(llvmDTy.getPointerTo()); /* buffer */
-        opers.push_back(llvmDTy.getPointerTo()); /* start of aligned data */
-        opers.push_back(llvmITy); /* offset into buffer */
-        opers.push_back(llvmITy); /* size per dim */
-        opers.push_back(llvmITy);
-        opers.push_back(llvmITy); /* stride per dim */
-        opers.push_back(llvmITy);
+      for (auto operand : operands) {
+        auto operTy = operand.getType();
+        auto llvmOperTy = operTy.cast<LLVM::LLVMType>();
+        bool isScalar = false;
+        if (llvmOperTy.isPointerTy()) {
+          auto llvmPointeeTy = llvmOperTy.getPointerElementTy();
+          if (llvmPointeeTy.isDoubleTy() || llvmPointeeTy.isIntegerTy() ||
+              llvmPointeeTy.isFloatTy()) {
+            std::cerr << "INFO: scalar operand detected" << std::endl;
+            opers.push_back(llvmOperTy);
+            isScalar = true;
+          }
+        }
+        if (!isScalar) {
+          if (llvmOperTy.isFloatTy() || llvmOperTy.isDoubleTy() ||
+              llvmOperTy.isIntegerTy()) {
+            opers.push_back(operTy.cast<LLVM::LLVMType>());
+
+          // TODO: stricter constraint to detect MemRefType
+          // (operTy.isa<MemRefType> does not work here).
+          } else if (llvmOperTy.isStructTy()) {
+            opers.push_back(llvmDTy.getPointerTo()); /* buffer */
+            opers.push_back(llvmDTy.getPointerTo()); /* start of aligned data */
+            opers.push_back(llvmITy); /* offset into buffer */
+            opers.push_back(llvmITy); /* size per dim */
+            opers.push_back(llvmITy);
+            opers.push_back(llvmITy); /* stride per dim */
+            opers.push_back(llvmITy);
+          }
+        }
       }
 
       // TODO: unranked memref?
@@ -618,11 +641,7 @@ public:
 
     for (auto &operand : operands) {
       auto operTy = operand.getType();
-      if (operTy.isa<IntegerType>() || operTy.isa<FloatType>()) {
-        argTypes.push_back(typeConverter->convertType(operTy)
-          .cast<LLVM::LLVMType>());
-        argVals.push_back(operand);
-      } else if (operTy.isa<MemRefType>()) {
+      if (operTy.isa<MemRefType>()) {
 
         // memref is not yet converted to struct: this has something
         // to do with region signature conversion (I think that unlike
@@ -787,10 +806,10 @@ public:
 
         argTypes.push_back(ptrTy);
         argVals.push_back(allocated);
-      } else {
-        // Should not happen, because argument type constraints in Ops.td
-        op->emitError("unsupported operand type");
-        return failure();
+      } else { /* supported operands: scalars, pointers to scalars */
+        argTypes.push_back(typeConverter->convertType(operTy)
+          .cast<LLVM::LLVMType>());
+        argVals.push_back(operand);
       }
     }
 

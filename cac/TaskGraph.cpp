@@ -43,6 +43,9 @@ IntScalar::IntScalar(uint8_t width, uint64_t v)
 DoubleScalar::DoubleScalar(double v)
 	: Scalar(new DoubleScalarImpl(v))
 {}
+PtrScalar::PtrScalar(Scalar *dest)
+	: Scalar(new PtrScalarImpl(dest->getImpl()))
+{}
 
 Dat::Dat(DatImpl *impl) : Value(impl) { }
 DatImpl *Dat::getImpl() {
@@ -115,6 +118,12 @@ IntScalar& TaskGraph::createIntScalar(std::unique_ptr<IntScalar> scalar) {
 DoubleScalar& TaskGraph::createDoubleScalar(double v) {
 	std::unique_ptr<DoubleScalar> scalar(new DoubleScalar(v));
 	DoubleScalar& ref = *scalar;
+	values.push_back(std::move(scalar));
+	return ref;
+}
+PtrScalar& TaskGraph::createPtrScalar(Scalar *dest) {
+	std::unique_ptr<PtrScalar> scalar(new PtrScalar(dest));
+	PtrScalar& ref = *scalar;
 	values.push_back(std::move(scalar));
 	return ref;
 }

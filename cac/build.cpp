@@ -50,7 +50,7 @@ void invokeKernels(OpBuilder &builder, MLIRContext &context,
 
   std::vector<mlir::Value> args;
   for (cac::Value *val : task.args) {
-    args.push_back(val->getImpl()->ref);
+    args.push_back(val->getImpl()->load(builder));
   }
 
   auto loc = builder.getUnknownLoc();
@@ -274,28 +274,29 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
     case cac::ValueImpl::Scalar: {
       cac::Scalar *scalar = static_cast<cac::Scalar*>(val.get());
       auto scalarImpl = scalar->getImpl();
-      // Allocate on the stack, pass to kernel by value.
-      // TODO: stay in std dialect! Have to go down to LLVM types because the
-      // alloca in MLIR std dialect is for memrefs only (?).
-      auto sTy = scalarImpl->getLLVMType(llvmDialect);
-      auto sStdTy = scalarImpl->getType(builder);
-      // TODO: assumes IndexType is 64-bit
-      auto idxTy = LLVM::LLVMType::getInt64Ty(llvmDialect);
-      mlir::Value one = builder.create<LLVM::ConstantOp>(loc, idxTy,
-	  builder.getIntegerAttr(builder.getIndexType(), 1));
-      auto sPtr = builder.create<LLVM::AllocaOp>(loc, sTy.getPointerTo(),
-	  one, /*align=*/ 0);
 
-      if (scalarImpl->initialized) {
-	auto initVal = builder.create<LLVM::ConstantOp>(loc, sTy,
-	    scalarImpl->getInitValue(builder));
-	builder.create<LLVM::StoreOp>(loc, initVal, sPtr);
+      if (!scalarImpl->isPointer()) {
+
+	// Allocate on the stack, pass to kernel by value.
+	// TODO: stay in std dialect! Have to go down to LLVM types because the
+	// alloca in MLIR std dialect is for memrefs only (?).
+	auto sTy = scalarImpl->getLLVMType(llvmDialect);
+	auto sStdTy = scalarImpl->getType(builder);
+	// TODO: assumes IndexType is 64-bit
+	auto idxTy = LLVM::LLVMType::getInt64Ty(llvmDialect);
+	mlir::Value one = builder.create<LLVM::ConstantOp>(loc, idxTy,
+	    builder.getIntegerAttr(builder.getIndexType(), 1));
+	auto sPtr = builder.create<LLVM::AllocaOp>(loc, sTy.getPointerTo(),
+	    one, /*align=*/ 0);
+
+	if (scalarImpl->initialized) {
+	  auto initVal = builder.create<LLVM::ConstantOp>(loc, sTy,
+	      scalarImpl->getInitValue(builder));
+	  builder.create<LLVM::StoreOp>(loc, initVal, sPtr);
+	}
+	scalarImpl->stdTy = sStdTy;
+	scalarImpl->ptr = sPtr;
       }
-      auto loaded = builder.create<LLVM::LoadOp>(loc, sPtr);
-      // TODO: It's ridiculous to go LLVM->std here, we should stay in std, but
-      // how to allocate a scalar in std? (alloca is only for memref? wtf)
-      scalarImpl->ref = builder.create<LLVM::DialectCastOp>(loc,
-	  sStdTy, loaded);
       break;
     }
     case cac::ValueImpl::Dat: {

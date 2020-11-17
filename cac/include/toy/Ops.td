@@ -208,7 +208,9 @@ def KernelOp : Toy_Op<"kernel"> {
   // We also allow a F64MemRef to enable interop during partial lowering.
   // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
   let arguments = (ins
-      Variadic<AnyTypeOf<[F64Tensor, F64MemRef]>>:$input,
+      //Variadic<AnyTypeOf<[AnyTensor, AnyMemRef, AnyInteger, AnyFloat]>>:$input,
+      // TODO: constrain
+      Variadic<AnyType>:$input,
       StrAttr:$func
   );
 
@@ -240,7 +242,9 @@ def HalideKernelOp : Toy_Op<"halide_kernel"> {
 
   // Note: Tensor or MemRef because lowered into MemRef (see MLIR tutorial)
   let arguments = (ins
-      Variadic<AnyTypeOf<[AnyTensor, AnyMemRef, AnyInteger, AnyFloat]>>:$input,
+      //Variadic<AnyTypeOf<[AnyTensor, AnyMemRef, AnyInteger, AnyFloat]>>:$input,
+      // TODO: constrain
+      Variadic<AnyType>:$input,
       StrAttr:$func,
       I32ArrayAttr:$variants
   );
