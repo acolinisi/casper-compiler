@@ -194,7 +194,9 @@ function(casper_build target app_args_file)
 	# metaprogram CMake instance), otherwise the app is in Casper source
 	# tree in apps/X/
 	find_library(CASPER_RUNTIME_LIBRARY ${rtlib} REQUIRED
-	    PATHS ${CASPER_LIBRARIES_PATH} ${META_BUILD_DIR}/../../runtime)
+	    PATHS ${CASPER_LIBRARIES_PATH}
+		${META_BUILD_DIR}/../../runtime
+		${META_BUILD_DIR}/../../../runtime)
 
 	# Compile the target harness
 	add_custom_command(OUTPUT ${target}.o
