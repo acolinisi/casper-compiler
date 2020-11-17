@@ -24,7 +24,7 @@ class ScalarImpl : public ValueImpl {
 public:
   enum ScalarType {
     Int,
-    Float,
+    Double,
   };
 public:
   ScalarImpl(enum ScalarType type, bool initialized);
@@ -51,12 +51,50 @@ public:
   const uint64_t v; // type large enough for max width
 };
 
+class DoubleScalarImpl : public ScalarImpl {
+public:
+  DoubleScalarImpl(double v);
+
+  virtual mlir::Type getType(mlir::OpBuilder &builder);
+  virtual mlir::LLVM::LLVMType getLLVMType(
+      mlir::LLVM::LLVMDialect *llvmDialect);
+  virtual mlir::Attribute getInitValue(mlir::OpBuilder &builder);
+public:
+  const double v;
+};
+
 class DatImpl : public ValueImpl {
+protected:
+  DatImpl(int dims, const std::vector<int> size);
+
 public:
-  DatImpl(int rows, int cols, const std::vector<double> &vals);
+  virtual mlir::Type getElementType(mlir::OpBuilder &builder) = 0;
 public:
-  const int rows, cols;
+  const int dims;
+  std::vector<int> size;
+
+};
+
+class DoubleDatImpl : public DatImpl {
+public:
+  DoubleDatImpl(int dims, const std::vector<int> size,
+      const std::vector<double> &vals = {})
+    : DatImpl(dims, size), vals(vals) {}
+
+  virtual mlir::Type getElementType(mlir::OpBuilder &builder);
+public:
   std::vector<double> vals;
+};
+
+class FloatDatImpl : public DatImpl {
+public:
+  FloatDatImpl(int dims, const std::vector<int> size,
+      const std::vector<float> &vals = {})
+    : DatImpl(dims, size), vals(vals) {}
+
+  virtual mlir::Type getElementType(mlir::OpBuilder &builder);
+public:
+  std::vector<float> vals;
 };
 
 class PyObjImpl : public ValueImpl {

@@ -31,8 +31,30 @@ mlir::Attribute IntScalarImpl::getInitValue(mlir::OpBuilder &builder) {
 	return mlir::IntegerAttr::get(getType(builder), mlir::APInt(width, v));
 }
 
-DatImpl::DatImpl(int rows, int cols, const std::vector<double> &vals)
-	: ValueImpl(ValueImpl::Dat), rows(rows), cols(cols), vals(vals) {
+DoubleScalarImpl::DoubleScalarImpl(double v)
+	: ScalarImpl(ScalarImpl::Double, true), v(v) {
+}
+mlir::Type DoubleScalarImpl::getType(mlir::OpBuilder &builder) {
+	return builder.getF64Type();
+}
+mlir::LLVM::LLVMType DoubleScalarImpl::getLLVMType(
+		mlir::LLVM::LLVMDialect *llvmDialect) {
+	return mlir::LLVM::LLVMType::getDoubleTy(llvmDialect);
+}
+mlir::Attribute DoubleScalarImpl::getInitValue(mlir::OpBuilder &builder) {
+	// APDouble is necessary, not sure why the uint64_t overload produces 0 value
+	return mlir::FloatAttr::get(getType(builder), mlir::APFloat(v));
+}
+
+DatImpl::DatImpl(int dims, std::vector<int> size)
+	: ValueImpl(ValueImpl::Dat), dims(dims), size(size) {
+}
+
+mlir::Type DoubleDatImpl::getElementType(mlir::OpBuilder &builder) {
+	return builder.getF64Type();
+}
+mlir::Type FloatDatImpl::getElementType(mlir::OpBuilder &builder) {
+	return builder.getF32Type();
 }
 
 PyObjImpl::PyObjImpl()

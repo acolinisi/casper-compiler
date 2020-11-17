@@ -301,8 +301,9 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
     case cac::ValueImpl::Dat: {
       cac::Dat *dat = static_cast<cac::Dat*>(val.get());
       auto datImpl = dat->getImpl();
-      auto elemTy = builder.getF64Type();
-      auto memrefTy = MemRefType::get({datImpl->rows, datImpl->cols}, elemTy);
+      auto elemTy = datImpl->getElementType(builder);
+      auto memrefTy = MemRefType::get(
+	  {datImpl->size[0], datImpl->size[1]}, elemTy);
       datImpl->ref = builder.create<AllocOp>(loc, memrefTy);
 
 #if 0 // TODO: temporarily unsupporting const values

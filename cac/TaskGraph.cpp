@@ -40,6 +40,9 @@ IntScalar::IntScalar(uint8_t width)
 IntScalar::IntScalar(uint8_t width, uint64_t v)
 	: Scalar(new IntScalarImpl(width, v))
 {}
+DoubleScalar::DoubleScalar(double v)
+	: Scalar(new DoubleScalarImpl(v))
+{}
 
 Dat::Dat(DatImpl *impl) : Value(impl) { }
 DatImpl *Dat::getImpl() {
@@ -59,11 +62,27 @@ Dat& TaskGraph::createDat(int n, int m) {
 }
 Dat& TaskGraph::createDat(int n, int m, const std::vector<double> &vals)
 {
-	std::unique_ptr<Dat> dat(new Dat(new DatImpl(n, m, vals)));
+	// TODO: vals
+	return createDoubleDat(2, {n, m});
+}
+
+Dat& TaskGraph::createDoubleDat(int dims, const std::vector<int> size)
+{
+	std::unique_ptr<Dat> dat(new DoubleDat(
+		new DoubleDatImpl(dims, size)));
 	Dat& ref = *dat;
 	values.push_back(std::move(dat));
 	return ref;
 }
+Dat& TaskGraph::createFloatDat(int dims, const std::vector<int> size)
+{
+	std::unique_ptr<Dat> dat(new FloatDat(
+		new FloatDatImpl(dims, size)));
+	Dat& ref = *dat;
+	values.push_back(std::move(dat));
+	return ref;
+}
+
 PyObj& TaskGraph::createPyObj()
 {
 	std::unique_ptr<PyObj> pyObj(new PyObj(new PyObjImpl()));
@@ -81,6 +100,12 @@ IntScalar& TaskGraph::createIntScalar(uint8_t width, uint64_t v) {
 }
 IntScalar& TaskGraph::createIntScalar(std::unique_ptr<IntScalar> scalar) {
 	IntScalar& ref = *scalar;
+	values.push_back(std::move(scalar));
+	return ref;
+}
+DoubleScalar& TaskGraph::createDoubleScalar(double v) {
+	std::unique_ptr<DoubleScalar> scalar(new DoubleScalar(v));
+	DoubleScalar& ref = *scalar;
 	values.push_back(std::move(scalar));
 	return ref;
 }

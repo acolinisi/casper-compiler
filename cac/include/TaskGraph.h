@@ -30,9 +30,18 @@ namespace cac {
 	};
 
 	class Dat : public Value {
-	public:
+	protected:
 		Dat(DatImpl *impl);
+	public:
 		DatImpl *getImpl();
+	};
+	class DoubleDat : public Dat {
+	public:
+		DoubleDat(DatImpl *impl) : Dat(impl) {}
+	};
+	class FloatDat : public Dat {
+	public:
+		FloatDat(DatImpl *impl) : Dat(impl) {}
 	};
 
 	class Scalar : public Value {
@@ -45,6 +54,10 @@ namespace cac {
 	public:
 		IntScalar(uint8_t width);
 		IntScalar(uint8_t width, uint64_t v);
+	};
+	class DoubleScalar : public Scalar {
+	public:
+		DoubleScalar(double v);
 	};
 
 	class PyObj : public Value {
@@ -157,9 +170,13 @@ namespace cac {
 		TaskGraph(const std::string &name);
 		Dat& createDat(int n, int m);
 		Dat& createDat(int n, int m, const std::vector<double> &vals);
+		Dat& createDoubleDat(int dims, std::vector<int> size);
+		Dat& createFloatDat(int dims, std::vector<int> size);
+
 		PyObj& createPyObj();
 		IntScalar& createIntScalar(uint8_t width);
 		IntScalar& createIntScalar(uint8_t width, uint64_t v);
+		DoubleScalar& createDoubleScalar(double v);
 
 		Task& createTask(HalideKernel kern,
 				std::vector<Value *> args = {},
