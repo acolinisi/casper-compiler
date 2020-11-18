@@ -137,9 +137,9 @@ namespace cac {
 	public:
 		std::string module;
 	};
-	class PyGenedKernel : public Kernel {
+	class FEMAKernel : public Kernel {
 	public:
-		PyGenedKernel(const std::string &module,
+		FEMAKernel(const std::string &module,
 				const std::string &kernelName)
 			: Kernel(kernelName), module(module) { }
 	public:
@@ -168,7 +168,7 @@ namespace cac {
 				std::vector<Task *> deps = {});
 		Task& createTask(PyKernel kern, std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
-		Task& createTask(PyGenedKernel kern, std::vector<Value *> args = {},
+		Task& createTask(FEMAKernel kern, std::vector<Value *> args = {},
 				std::vector<Task *> deps = {});
 
 		// There's a one-to-many relationship between generators and

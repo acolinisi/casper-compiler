@@ -14,10 +14,10 @@ int main(int argc, char **argv) {
 
 	PyObj* state = &tg.createPyObj();
 
-	Task& task_init = tg.createTask(PyGenedKernel("kern", "init"), {state});
-	Task& task_mass = tg.createTask(PyGenedKernel("kern", "mass"),
+	Task& task_init = tg.createTask(FEMAKernel("kern", "init"), {state});
+	Task& task_mass = tg.createTask(FEMAKernel("kern", "mass"),
 			{state}, {&task_init});
-	Task& task_hats = tg.createTask(PyGenedKernel("kern", "hats"),
+	Task& task_hats = tg.createTask(FEMAKernel("kern", "hats"),
 			{state}, {&task_init});
 	Task& task_solve = tg.createTask(PyKernel("kern", "solve"), {state},
 			{&task_hats});
