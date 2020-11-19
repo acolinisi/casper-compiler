@@ -18,7 +18,7 @@ os.environ["OMP_NUM_THREADS"] = str(1)
 from firedrake import *
 import casper
 
-mesh_size = 64
+mesh_size = 128
 dim = 2
 preconditioner = 'fieldsplit'
 ksp = 'gmres'
