@@ -4,7 +4,7 @@ add_subdirectory(include)
 # Note: assuming Halide's private headres are in usr/include/Halide
 # Halide's private headers needed to invoke generators from Casper.
 find_package(Halide REQUIRED)
-find_package(Boost COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(Python COMPONENTS Development REQUIRED)
 
 set(LLVM_LINK_COMPONENTS
