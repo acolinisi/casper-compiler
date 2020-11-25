@@ -2,8 +2,8 @@ include(casper)
 
 # Input image (pick one) (ordered by size)
 set(INPUT_IMG
-  #casper-256x200.bmp
-  casper.bmp
+  casper-256x200.bmp
+  #casper.bmp
   #casper-tiled10.bmp
 )
 configure_file(${INPUT_IMG} casper.bmp COPYONLY)
