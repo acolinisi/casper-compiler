@@ -110,7 +110,7 @@ void *_crt_py_alloc_str(const char *s)
 void _crt_py_free_obj(void *obj)
 {
 	PyObject *pyObj = static_cast<PyObject *>(obj);
-	return Py_DECREF(pyObj);
+	Py_DECREF(pyObj);
 }
 
 // TODO: let py_func be optional

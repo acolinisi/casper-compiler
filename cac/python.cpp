@@ -112,7 +112,7 @@ void *alloc_obj()
 void free_obj(void *obj)
 {
 	PyObject *pyObj = static_cast<PyObject *>(obj);
-	return Py_DECREF(pyObj);
+	Py_DECREF(pyObj);
 }
 
 // TODO: let py_func be optional
