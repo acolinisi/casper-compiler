@@ -20,6 +20,6 @@ int main(int argc, char **argv) {
 	Task& task_hats = tg.createTask(FEMAKernel("kern", "hats"),
 			{state}, {&task_init});
 	Task& task_solve = tg.createTask(PyKernel("kern", "solve"), {state},
-			{&task_hats});
+			{&task_mass, &task_hats});
 	return tryCompile(tg, opts);
 }
