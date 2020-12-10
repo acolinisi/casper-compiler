@@ -23,6 +23,7 @@ compute_norms = False # TODO
 verbose = False
 
 solution_out = None
+#solution_out = 'ch-sol.pvd'
 
 def generate():
     tasks = dict()
@@ -180,7 +181,7 @@ def solve(ctx, state):
         casper.invoke_task(ctx, "assign", state)
         solver.solve()
         if out_file is not None:
-            out_file << (u.split()[0], step)
+            out_file.write(u.split()[0], time=step)
         if compute_norms:
             nu = norm(u)
             if comm.rank == 0:
