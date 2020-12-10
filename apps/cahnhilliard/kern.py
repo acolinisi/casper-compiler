@@ -1,13 +1,3 @@
-# Stokes Equations
-# ================
-#
-# A simple example of a saddle-point system, we will use the Stokes
-# equations to demonstrate some of the ways we can do field-splitting
-# with matrix-free operators.  We set up the problem as a lid-driven
-# cavity.
-#
-# As ever, we import firedrake and define a mesh.::
-
 import os
 import sys
 import time
