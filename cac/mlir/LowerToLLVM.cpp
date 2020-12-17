@@ -790,8 +790,23 @@ public:
               extentVal, rewriter.getI32ArrayAttr(
                 {i, kHalideBuffDimExtent}));
 
+#if 0
+          // Does not yield what Halide kernels expect. Yields:
+          //    dim 0: extent=262144, stride=3
+          //    dim 1: extent=3,      stride=1
+          // But expected:
+          //    dim 0: extent=262144, stride=1
+          //    dim 1: extent=3,      stride=262144
+          // TODO: this is probably an issue with constructing the MemRef
+          int stride = strides[i];
+#else
+          int stride = 1;
+          for (int j = i - 1; j >= 0; --j) { /* multiply prev extents */
+            stride *= memRefShape[j];
+          }
+#endif
           Value strideVal = rewriter.create<LLVM::ConstantOp>(loc,
-            llvmI32Ty, rewriter.getI32IntegerAttr(strides[i]));
+            llvmI32Ty, rewriter.getI32IntegerAttr(stride));
           dimArr = rewriter.create<LLVM::InsertValueOp>(loc, dimArrTy, dimArr,
               strideVal, rewriter.getI32ArrayAttr(
                 {i, kHalideBuffDimStride}));
