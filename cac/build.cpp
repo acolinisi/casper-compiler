@@ -305,6 +305,7 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
       auto memrefTy = MemRefType::get({datImpl->rows, datImpl->cols}, elemTy);
       datImpl->ref = builder.create<AllocOp>(loc, memrefTy);
 
+#if 0 // TODO: temporarily unsupporting const values
       // Load constant values if any were given
       if (datImpl->vals.size() > 0) {
 	// Copied from lowering of ConstantOp
@@ -353,6 +354,7 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
 	// Start the element storing recursion from the first dimension.
 	storeElements(/*dimension=*/0);
       }
+#endif
       break;
     }
     case cac::ValueImpl::PyObj: {
