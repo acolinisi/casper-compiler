@@ -332,8 +332,6 @@ public:
   LogicalResult
   matchAndRewrite(Operation *op, ArrayRef<Value> operands,
                   ConversionPatternRewriter &rewriter) const override {
-    auto memRefType = (*op->operand_type_begin()).cast<MemRefType>();
-    auto memRefShape = memRefType.getShape();
     auto loc = op->getLoc();
     auto *llvmDialect =
         op->getContext()->getRegisteredDialect<LLVM::LLVMDialect>();
