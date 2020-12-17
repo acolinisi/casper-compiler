@@ -5,13 +5,17 @@ set(CASPER_COMPILER_LIB cac)
 #   SOURCES: source files for the metaprogram, including Halide generators
 #   C_KERNEL_SOURCES: source files with kernels written in C
 #   BUILD_DIR: directory where to put the application binary (has a default)
+#   EXTRA_PACKAGES: list of packages to pass to find_package in the nested
+#                   cmake project (may be needed when EXTRA_LIBRARIES
+#                   contains aliases like Package::foo)
+#   EXTRA_LIBRARIES: list of libraries to link the target against
 # Sets:
 #   ${target}_BUILD_DIR: build directory that contains target executable
 function(casper_add_exec target meta_prog)
 	cmake_parse_arguments(FARG
 		""
 		"PLATFORM;INPUT_DESC;CANDIDATES;TUNED_PARAMS;EXTRA_PYTHONPATH"
-		"SOURCES;C_KERNEL_SOURCES;TRAIN_ARGS"
+		"SOURCES;C_KERNEL_SOURCES;EXTRA_INCLUDE_DIRS;EXTRA_PACKAGES;EXTRA_LIBRARIES;TRAIN_ARGS"
 		${ARGN})
 
 	set(SPEC_FILES
@@ -41,6 +45,9 @@ function(casper_add_exec target meta_prog)
 	)
 	set(TARGET_OPTS
 		C_KERNEL_SOURCES ${FARG_C_KERNEL_SOURCES}
+		EXTRA_INCLUDE_DIRS ${FARG_EXTRA_INCLUDE_DIRS}
+		EXTRA_PACKAGES ${FARG_EXTRA_PACKAGES}
+		EXTRA_LIBRARIES ${FARG_EXTRA_LIBRARIES}
 	)
 	set(META_PROG_DEPS
 		${FARG_PLATFORM}
@@ -178,11 +185,15 @@ function(casper_build target app_args_file)
 	cmake_parse_arguments(FARG
 		"APP;PROFILING_HARNESS"
 		""
-		"C_KERNEL_SOURCES;HALIDE_TASK_LIBS;NODE_TYPE_IDS"
+		"C_KERNEL_SOURCES;HALIDE_TASK_LIBS;NODE_TYPE_IDS;EXTRA_INCLUDE_DIRS;EXTRA_PACKAGES;EXTRA_LIBRARIES"
 		${ARGS_FROM_FILE} ${ARGN})
 
 	find_program(LLC llc REQUIRED DOC "LLVM IR compiler")
 	find_package(Threads)
+
+	foreach (pkg ${FARG_EXTRA_PACKAGES})
+		find_package(${pkg})
+	endforeach()
 
 	if (${FARG_PROFILING_HARNESS})
 		set(rtlib casper_runtime_prof)
@@ -216,6 +227,9 @@ function(casper_build target app_args_file)
 	if (c_src_files)
 		set(lib ${target}_kern_c)
 		add_library(${lib} ${c_src_files})
+		target_include_directories(${lib}
+			PUBLIC ${FARG_EXTRA_INCLUDE_DIRS})
+		target_link_libraries(${lib} ${FARG_EXTRA_LIBRARIES})
 		list(APPEND kernel_libs ${lib})
 	endif ()
 
@@ -226,7 +240,10 @@ function(casper_build target app_args_file)
 
 	# Link the application binary
 	add_executable(${target} ${CMAKE_CURRENT_BINARY_DIR}/${target}.o)
+	target_include_directories(${target}
+		PUBLIC ${FARG_EXTRA_INCLUDE_DIRS})
 	target_link_libraries(${target} ${kernel_libs} ${CASPER_RUNTIME_LIBRARY}
-	    Threads::Threads ${CMAKE_DL_LIBS})
+		${FARG_EXTRA_LIBRARIES}
+		Threads::Threads ${CMAKE_DL_LIBS})
 	set_target_properties(${target} PROPERTIES LINKER_LANGUAGE CXX)
 endfunction()
