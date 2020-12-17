@@ -303,8 +303,14 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
       cac::Dat *dat = static_cast<cac::Dat*>(val.get());
       auto datImpl = dat->getImpl();
       auto elemTy = datImpl->getElementType(builder);
-      auto memrefTy = MemRefType::get(
-	  {datImpl->size[0], datImpl->size[1]}, elemTy);
+
+      // TODO: fix types to match
+      std::vector<int64_t> dimSizes;
+      for (int dimSize : datImpl->size) {
+	dimSizes.push_back(dimSize);
+      }
+
+      auto memrefTy = MemRefType::get(dimSizes, elemTy);
       datImpl->ref = builder.create<AllocOp>(loc, memrefTy);
 
 #if 0 // TODO: temporarily unsupporting const values

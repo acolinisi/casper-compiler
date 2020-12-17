@@ -345,7 +345,7 @@ public:
     StringRef func = funcAttr.getValue();
 
     auto kernRef = getOrInsertKernFunc(rewriter, parentModule,
-        func, operands, llvmDialect);
+        func, op, operands, llvmDialect);
     auto kernOp = cast<toy::KernelOp>(op);
 
     rewriter.create<CallOp>(loc, kernRef, ArrayRef<Type>(), kernOp.input());
@@ -361,6 +361,7 @@ private:
   static FlatSymbolRefAttr getOrInsertKernFunc(PatternRewriter &rewriter,
                                              ModuleOp module,
                                              StringRef name,
+                                             Operation *op,
                                              ArrayRef<Value> operands,
                                              LLVM::LLVMDialect *llvmDialect) {
     auto *context = module.getContext();
@@ -394,13 +395,21 @@ private:
           // TODO: stricter constraint to detect MemRefType
           // (operTy.isa<MemRefType> does not work here).
           } else if (llvmOperTy.isStructTy()) {
-            opers.push_back(llvmDTy.getPointerTo()); /* buffer */
-            opers.push_back(llvmDTy.getPointerTo()); /* start of aligned data */
+            auto elemPtrTy = llvmOperTy.getStructElementType(0);
+            auto dimSizeArrTy = llvmOperTy.getStructElementType(3);
+            assert(dimSizeArrTy.isArrayTy());
+            unsigned dims = dimSizeArrTy.getArrayNumElements();
+
+            opers.push_back(elemPtrTy); /* buffer */
+            opers.push_back(elemPtrTy); /* start of aligned data */
             opers.push_back(llvmITy); /* offset into buffer */
-            opers.push_back(llvmITy); /* size per dim */
-            opers.push_back(llvmITy);
-            opers.push_back(llvmITy); /* stride per dim */
-            opers.push_back(llvmITy);
+            for (int i = 0; i < dims; ++i) {
+              opers.push_back(llvmITy); /* size per dim */
+              opers.push_back(llvmITy); /* stride per dim */
+            }
+          } else {
+            op->emitError("unsupported operand type");
+            failure();
           }
         }
       }
