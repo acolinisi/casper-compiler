@@ -97,6 +97,18 @@ public:
   std::vector<float> vals;
 };
 
+class IntDatImpl : public DatImpl {
+public:
+  IntDatImpl(int width, int dims, const std::vector<int> size,
+      const std::vector<double> &vals = {})
+    : DatImpl(dims, size), vals(vals), width(width) {}
+
+  virtual mlir::Type getElementType(mlir::OpBuilder &builder);
+public:
+  std::vector<double> vals;
+  int width;
+};
+
 class PyObjImpl : public ValueImpl {
 public:
   PyObjImpl();

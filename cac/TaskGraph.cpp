@@ -82,6 +82,15 @@ Dat& TaskGraph::createFloatDat(int dims, const std::vector<int> size)
 	values.push_back(std::move(dat));
 	return ref;
 }
+Dat& TaskGraph::createIntDat(int width, int dims,
+		const std::vector<int> size)
+{
+	std::unique_ptr<Dat> dat(new IntDat(
+		new IntDatImpl(width, dims, size)));
+	Dat& ref = *dat;
+	values.push_back(std::move(dat));
+	return ref;
+}
 
 PyObj& TaskGraph::createPyObj()
 {

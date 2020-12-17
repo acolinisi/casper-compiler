@@ -43,6 +43,10 @@ namespace cac {
 	public:
 		FloatDat(DatImpl *impl) : Dat(impl) {}
 	};
+	class IntDat : public Dat {
+	public:
+		IntDat(DatImpl *impl) : Dat(impl) {}
+	};
 
 	class Scalar : public Value {
 	public:
@@ -172,6 +176,7 @@ namespace cac {
 		Dat& createDat(int n, int m, const std::vector<double> &vals);
 		Dat& createDoubleDat(int dims, std::vector<int> size);
 		Dat& createFloatDat(int dims, std::vector<int> size);
+		Dat& createIntDat(int width, int dims, std::vector<int> size);
 
 		PyObj& createPyObj();
 		IntScalar& createIntScalar(uint8_t width);

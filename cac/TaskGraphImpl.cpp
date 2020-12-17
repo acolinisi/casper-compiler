@@ -56,6 +56,9 @@ mlir::Type DoubleDatImpl::getElementType(mlir::OpBuilder &builder) {
 mlir::Type FloatDatImpl::getElementType(mlir::OpBuilder &builder) {
 	return builder.getF32Type();
 }
+mlir::Type IntDatImpl::getElementType(mlir::OpBuilder &builder) {
+	return builder.getIntegerType(width);
+}
 
 PyObjImpl::PyObjImpl()
 	: ValueImpl(ValueImpl::PyObj) {
