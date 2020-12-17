@@ -39,7 +39,7 @@ function(casper_add_exec target meta_prog)
 		--platform ${FARG_PLATFORM}
 		--python-path "${CMAKE_CURRENT_SOURCE_DIR}:${CAC_PYAPI_DIR}:${CAC_PY_DIR}:${Python_SITELIB}:${FARG_EXTRA_PYTHONPATH}"
 	)
-	set(META_PROG_OPTS
+	set(TARGET_OPTS
 		C_KERNEL_SOURCES ${FARG_C_KERNEL_SOURCES}
 	)
 	set(META_PROG_DEPS
@@ -69,7 +69,7 @@ function(casper_add_exec target meta_prog)
 	#		${META_PROG_ARGS}
 	#	DEPENDS ${meta_prog} ${META_PROG_DEPS})
 
-	#create_nested_proj(${prof_harness} PROFILING_HARNESS ${META_PROG_OPTS})
+	#create_nested_proj(${prof_harness} PROFILING_HARNESS ${TARGET_OPTS})
 	#build_nested_proj(${prof_harness} PROF_HARNESS_BUILD_DIR)
 
 	#add_custom_target(${target}.harness
@@ -110,7 +110,9 @@ function(casper_add_exec target meta_prog)
 			#${target}.models/timestamp)
 	add_custom_target(${target}.compile DEPENDS ${target}.ll)
 
-	create_nested_proj(${target} APP ${META_PROG_OPTS})
+	# TODO: investigate cmake's 'export' feature to help with
+	# accessing targets defined by the nested project from parent
+	create_nested_proj(${target} APP ${TARGET_OPTS})
 	build_nested_proj(${target} TARGET_BUILD_DIR)
 
 	# Note: for some reason naming this target '${target}' does not work
