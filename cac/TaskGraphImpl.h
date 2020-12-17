@@ -39,13 +39,13 @@ public:
 
 class IntScalarImpl : public ScalarImpl {
 public:
-	IntScalarImpl(uint8_t width);
-	IntScalarImpl(uint8_t width, uint64_t v);
+  IntScalarImpl(uint8_t width);
+  IntScalarImpl(uint8_t width, uint64_t v);
 
-	virtual mlir::Type getType(mlir::OpBuilder &builder);
-	virtual mlir::LLVM::LLVMType getLLVMType(
-	    mlir::LLVM::LLVMDialect *llvmDialect);
-	virtual mlir::Attribute getInitValue(mlir::OpBuilder &builder);
+  virtual mlir::Type getType(mlir::OpBuilder &builder);
+  virtual mlir::LLVM::LLVMType getLLVMType(
+      mlir::LLVM::LLVMDialect *llvmDialect);
+  virtual mlir::Attribute getInitValue(mlir::OpBuilder &builder);
 public:
   const uint8_t width;
   const uint64_t v; // type large enough for max width
