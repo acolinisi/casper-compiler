@@ -43,6 +43,9 @@ void composeArgsFile(cac::TaskGraph &tg, cac::KnowledgeBase &db,
 }
 
 void compilePyGeneratedTasks(cac::TaskGraph &tg, const cac::Options &opts) {
+	if (tg.pyGenerators.empty()) {
+		return;
+	}
 	cac::py::init(opts.pythonPath);
 	for (auto &gen : tg.pyGenerators) {
 		PyObject *args[] = {
