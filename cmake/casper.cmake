@@ -142,6 +142,10 @@ function(create_nested_proj proj)
 cmake_minimum_required(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 project(${prj} LANGUAGES CXX C)
 set(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH})
+# Forward from parent project
+set(CMAKE_CXX_STANDARD ${CMAKE_CXX_STANDARD})
+set(CMAKE_CXX_STANDARD_REQUIRED ${CMAKE_CXX_STANDARD_REQUIRED})
+set(CMAKE_CXX_EXTENSIONS ${CMAKE_CXX_EXTENSIONS})
 include(casper)
 casper_build(${proj} ${CMAKE_CURRENT_BINARY_DIR}/${proj}.args ${ARGN})
 "
