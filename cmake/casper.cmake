@@ -165,6 +165,7 @@ function(build_nested_proj proj build_dir_var)
 			-DMETA_BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}"
 			-DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}"
 			-DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}"
+			-DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
 		COMMAND ${CMAKE_COMMAND}
 			--build "${CMAKE_CURRENT_BINARY_DIR}/${proj}/${build_dir}/"
 			-- ${proj}
