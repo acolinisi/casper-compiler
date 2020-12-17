@@ -210,8 +210,12 @@ int _crt_py_launch3(const char *py_module, const char *py_func,
 
 // TODO: take list of generators (module.function)
 // TODO: return a context that is passed to all tasks in this module
-PyObject *_crt_py_construct_kernels() {
+PyObject *_crt_py_construct_context() {
 	PyObject *ctx;
+	// TODO: For now, the generator acts as a context constructor
+	// too, because the generator does two things: compile and
+	// create context. In general, these could be two separate
+	// methods. And, this shouldn't be hardcoded.
 	int rc = py_launch("kern", "generate", 0, NULL, &ctx);
 	return ctx;
 }

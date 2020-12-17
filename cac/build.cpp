@@ -226,7 +226,7 @@ int buildMLIRFromGraph(OwningModuleRef &module, cac::TaskGraph &tg,
   auto pyAllocStrFunc = declareTakeStrRetPyObjFunc(builder, module,
       llvmDialect, "_crt_py_alloc_str");
   auto pyConstructKernelsFunc = declareRetPyObjFunc(builder, module,
-      llvmDialect, "_crt_py_construct_kernels");
+      llvmDialect, "_crt_py_construct_context");
 
   LLVM::LLVMFuncOp initProfFunc, finProfFunc;
   if (profilingHarness) {
