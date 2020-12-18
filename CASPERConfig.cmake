@@ -8,7 +8,12 @@ set(CASPER_META_LIB_DIRS
 set(CASPER_TARGET_LIB_DIRS
 	${CASPER_DIR}/build/runtime)
 
-set(CASPER_COMPILER_LIB cac)
+# Casper requires Halide unconditionally (because libcac.so contains
+# code to invoke Halide generators)
+find_package(Halide REQUIRED)
+
+# Note: list all transitive deps, since we're in a separate project
+set(CASPER_COMPILER_LIBS cac knowbase Halide::Halide)
 
 # Create a Casper executable (application)
 # Arguments: app_target SOURCES source_file... HALIDE_GENERATORS gen1 ...
@@ -43,7 +48,7 @@ function(casper_add_exec target meta_prog)
 
 
 	add_executable(${meta_prog} ${FARG_SOURCES})
-	target_link_libraries(${meta_prog} LINK_PUBLIC ${CASPER_COMPILER_LIB})
+	target_link_libraries(${meta_prog} LINK_PUBLIC ${CASPER_COMPILER_LIBS})
 	target_include_directories(${meta_prog} PUBLIC ${CASPER_META_INCLUDE_DIRS})
 	target_link_directories(${meta_prog} PUBLIC ${CASPER_META_LIB_DIRS})
 	# Common across invocations of metaprogram (for harness and for app)
