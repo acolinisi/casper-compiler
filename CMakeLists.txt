@@ -48,7 +48,7 @@ include_directories(${PROJECT_BINARY_DIR}/cac/include)
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
-add_subdirectory(cac)
 add_subdirectory(runtime)
 add_subdirectory(knowbase)
+add_subdirectory(cac)
 add_subdirectory(apps)

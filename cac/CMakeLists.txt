@@ -83,5 +83,15 @@ target_link_libraries(cac
 target_include_directories(cac PRIVATE ${Python_INCLUDE_DIRS})
 target_link_directories(cac PRIVATE ${Python_LIBRARY_DIRS})
 
-
 mlir_check_link_libraries(cac)
+
+# We have to add the paths to all the dependencies to RPATH (it actually
+# ends up in RUNPATH), otherwise apps fail to link against libcac.
+# TODO: There has to be a better way.  At least, why doesn't setting
+# INSTALL_RPATH_USE_LINK_PATH add the dirs for the deps?
+get_target_property(CAC_INSTALL_RPATH cac INSTALL_RPATH)
+get_target_property(KNOWBASE_DIR knowbase BINARY_DIR)
+set_target_properties(cac PROPERTIES
+  INSTALL_RPATH "${CAC_INSTALL_RPATH}:${KNOWBASE_DIR}")
+# Does not add knowbase's path to RPATH/RUNPATH:
+# set_target_properties(cac PROPERTIES INSTALL_RPATH_USE_LINK_PATH ON)
