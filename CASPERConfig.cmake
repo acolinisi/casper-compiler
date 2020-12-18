@@ -41,13 +41,11 @@ function(casper_add_exec target meta_prog)
 	find_package(Threads)
 	find_package(Python REQUIRED COMPONENTS Interpreter)
 
-	## TODO: FindCasper.cmake (figure out if functions go into Find*.cmake),
-	## then move these out of the function
-	#find_program(LLC llc REQUIRED DOC "LLVM IR compiler")
-	include_directories(${CAC_INCLUDE_DIRS})
 
 	add_executable(${meta_prog} ${FARG_SOURCES})
 	target_link_libraries(${meta_prog} LINK_PUBLIC ${CASPER_COMPILER_LIB})
+	target_include_directories(${meta_prog} PUBLIC ${CASPER_META_INCLUDE_DIRS})
+	target_link_directories(${meta_prog} PUBLIC ${CASPER_META_LIB_DIRS})
 	# Common across invocations of metaprogram (for harness and for app)
 	set(META_PROG_ARGS
 		--platform ${FARG_PLATFORM}
