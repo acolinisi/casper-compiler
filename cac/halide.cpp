@@ -72,7 +72,6 @@ std::string makeArtifactName(const std::string &generator,
       return generator + "_v" + std::to_string(nodeDesc.id);
 }
 
-const Target target{"host-no_runtime"};
 const std::string output_dir(".");
 
 const CompilerLoggerFactory no_compiler_logger_factory =
@@ -82,12 +81,11 @@ const CompilerLoggerFactory no_compiler_logger_factory =
   };
 
 std::string compileHalideKernel(const std::string &generator,
-    const std::string &artifact,
+    const Target &target, const std::string &artifact,
     const std::map<std::string, std::string> &params) {
   std::string file_base_name("lib" + artifact);
   std::string function_name(artifact);
   bool build_gradient_module = false; // TODO: investigate, also 'true' breaks
-  std::vector<Target> targets{target};
 
   std::string base_path = compute_base_path(output_dir, function_name,
       file_base_name);
@@ -109,18 +107,38 @@ std::string compileHalideKernel(const std::string &generator,
       return build_gradient_module ?
 		  gen->build_gradient_module(name) : gen->build_module(name);
   };
-  compile_multitarget(function_name, output_files, targets, module_factory,
-      no_compiler_logger_factory);
-  return file_base_name + ".a";
+  // We can't let compile_multitarget generate a function per target, because
+  // then number of kernel functions will be num variants * num targets, and
+  // for the compiler to emit a call into one of these functions, the compiler
+  // would need to key by variant and by target. But this two-level keying
+  // is pointless, because keying by variant should be enough -- variants
+  // should encapsulate targets. Every variant defined is NOT expected to
+  // be compilable for more than one target (if it is, then define the variant
+  // twice with the same params, once for each target).
+  std::vector<Target> variant_target{target};
+  compile_multitarget(function_name, output_files, variant_target,
+      module_factory, no_compiler_logger_factory);
+  return output_files.at(Output::static_library);
 }
 
-std::string compileHalideRuntime() {
+std::string compileHalideRuntime(const std::vector<Target> targets) {
+  assert(targets.size() > 0);
+  auto target_iter = targets.begin();
+  Target base_target{*target_iter};
+  for (; target_iter != targets.end(); ++target_iter) {
+    Target new_base_target;
+    if (!base_target.get_runtime_compatible_target(*target_iter, new_base_target)) {
+      throw std::runtime_error("failed to find common denominator target");
+    }
+    base_target = new_base_target;
+  }
+
   std::string runtime_name("libhalide_runtime");
   std::set<Output> outputs{Output::static_library};
   std::string base_path = compute_base_path(output_dir, runtime_name, "");
-  auto output_files = compute_output_files(target, base_path, outputs);
-  compile_standalone_runtime(output_files, target);
-  return runtime_name + ".a";
+  auto output_files = compute_output_files(base_target, base_path, outputs);
+  compile_standalone_runtime(output_files, base_target);
+  return output_files.at(Output::static_library);
 }
 
 } // namespace anon
@@ -138,8 +156,11 @@ void introspectHalideTasks(cac::TaskGraph &tg) {
 			// Note: we can't save the generator in task obj and re-use
 			// it for compilation, because generators are single-use,
 			// whereas we need to compile per platform.
+			// The actual target is specified later during call to
+			// compile_multitarget(), so this one here doesn't matter.
+			const Target dummy_target{"host-no_runtime"};
 			auto gen = Internal::GeneratorRegistry::create(generator,
-						GeneratorContext(target));
+						GeneratorContext(dummy_target));
 
 			auto &paramInfo = gen->param_info();
 			for (auto *p : paramInfo.generator_params()) {
@@ -158,6 +179,7 @@ void introspectHalideTasks(cac::TaskGraph &tg) {
 std::vector<std::string> compileHalideTasks(cac::TaskGraph &tg,
 		cac::Platform &plat, cac::KnowledgeBase &kb) {
 	std::vector<std::string> libs;
+	std::vector<Target> targets;
 	for (auto &task : tg.tasks) {
 		if (task->type == cac::Task::Halide) {
 			cac::HalideTask *hTask = static_cast<cac::HalideTask *>(task.get());
@@ -173,14 +195,17 @@ std::vector<std::string> compileHalideTasks(cac::TaskGraph &tg,
 				for (auto &kv : params) {
 					std::cerr << kv.first << " = " << kv.second << std::endl;
 				}
+				const Target target{params.at("target")};
+				targets.push_back(target);
 
-				const std::string &lib = compileHalideKernel(generator,
-						artifact, params);
+				const std::string &lib =
+				  compileHalideKernel(generator, target, artifact,
+				      params);
 				libs.push_back(lib);
 			}
 		}
 	}
-	const std::string &rtLib = compileHalideRuntime();
+	const std::string &rtLib = compileHalideRuntime(targets);
 	libs.push_back(rtLib);
 	return libs;
 }
@@ -188,6 +213,7 @@ std::vector<std::string> compileHalideTasks(cac::TaskGraph &tg,
 std::vector<std::string> compileHalideTasksToProfile(cac::TaskGraph &tg,
 		cac::KnowledgeBase &kb) {
 	std::vector<std::string> libs;
+	std::vector<Target> targets;
 	for (auto &task : tg.tasks) {
 		if (task->type == cac::Task::Halide) {
 			cac::HalideTask *hTask = static_cast<cac::HalideTask *>(task.get());
@@ -222,10 +248,13 @@ std::vector<std::string> compileHalideTasksToProfile(cac::TaskGraph &tg,
 				for (auto &kv : sample) {
 					std::cerr << kv.first << " = " << kv.second << std::endl;
 				}
+				const Target target{sample.at("target")};
+				targets.push_back(target);
 				try {
-				  const std::string &lib = compileHalideKernel(generator,
+				const std::string &lib =
+				    compileHalideKernel(generator, target,
 						  artifact.str(), sample);
-				  libs.push_back(lib);
+				libs.push_back(lib);
 				  ++validSamples;
 				} catch(std::exception &e) {
 				  std::cerr << "failed to compile variant" << std::endl;
@@ -234,7 +263,7 @@ std::vector<std::string> compileHalideTasksToProfile(cac::TaskGraph &tg,
 			}
 		}
 	}
-	const std::string &rtLib = compileHalideRuntime();
+	const std::string &rtLib = compileHalideRuntime(targets);
 	libs.push_back(rtLib);
 	return libs;
 }
