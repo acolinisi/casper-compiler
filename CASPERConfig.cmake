@@ -16,7 +16,10 @@ set(CAC_PY_DIR ${CASPER_DIR}/cac/py)
 find_package(Halide REQUIRED)
 
 # Note: list all transitive deps, since we're in a separate project
-set(CASPER_COMPILER_LIBS cac knowbase Halide::Halide)
+set(CASPER_COMPILER_LIBS
+	cac
+	knowbase
+	Halide::Halide)
 
 # Create a Casper executable (application)
 # Arguments: app_target SOURCES source_file... HALIDE_GENERATORS gen1 ...
