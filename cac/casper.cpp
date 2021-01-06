@@ -11,6 +11,10 @@
 
 #include <Python.h>
 
+#include <fstream>
+#include <sstream>
+#include <iostream>
+
 namespace {
 
 void composeArgsFile(cac::TaskGraph &tg, cac::KnowledgeBase &db,
