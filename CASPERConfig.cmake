@@ -18,7 +18,7 @@ find_package(Halide REQUIRED)
 # Note: list all transitive deps, since we're in a separate project
 set(CASPER_COMPILER_LIBS
 	cac
-	knowbase
+	#knowbase # integration with KB disabled for now
 	Halide::Halide)
 
 # Create a Casper executable (application)

@@ -29,7 +29,7 @@ add_llvm_library(cac
   ini.cpp
   mlir.cpp
   python.cpp
-  tune.cpp
+  #tune.cpp # integration with KB disabled for now
   InputDesc.cpp
   KnowledgeBase.cpp
   Options.cpp
@@ -77,7 +77,7 @@ target_link_libraries(cac
   Halide::Halide
   Boost::program_options
   ${Python_LIBRARIES}
-  knowbase
+  #knowbase
   )
 
 target_include_directories(cac PRIVATE ${Python_INCLUDE_DIRS})
@@ -90,7 +90,7 @@ mlir_check_link_libraries(cac)
 # TODO: There has to be a better way.  At least, why doesn't setting
 # INSTALL_RPATH_USE_LINK_PATH add the dirs for the deps?
 get_target_property(CAC_INSTALL_RPATH cac INSTALL_RPATH)
-get_target_property(KNOWBASE_DIR knowbase BINARY_DIR)
+#get_target_property(KNOWBASE_DIR knowbase BINARY_DIR)
 set_target_properties(cac PROPERTIES
   INSTALL_RPATH "${CAC_INSTALL_RPATH}:${KNOWBASE_DIR}")
 # Does not add knowbase's path to RPATH/RUNPATH:

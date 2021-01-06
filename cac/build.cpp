@@ -1,5 +1,7 @@
 #include "Platform.h"
+#if 0 // integration with KB disabled for now
 #include "KnowledgeBase.h"
+#endif
 #include "TaskGraph.h"
 #include "TaskGraphImpl.h"
 

@@ -3,7 +3,9 @@
 #include "Options.h"
 #include "ini.h"
 
+#if 0 // integration with KB disabled for now
 #include "knowbase.h"
+#endif
 
 #include <cassert>
 #include <iostream>
@@ -28,6 +30,7 @@ void KnowledgeBase::loadPlatform(const std::string &iniFile) {
 	for (const auto &sectPair : dict) {
 		const auto &sect = sectPair.second;
 
+#if 0 // integration with KB disabled for now
 		std::string type;
 		{
 		const auto &it = sect.find("type");
@@ -68,10 +71,15 @@ void KnowledgeBase::loadPlatform(const std::string &iniFile) {
 		kbGraph[v].is_hardware = true;
 		kbGraph[v].hardware = hw;
 		kbGraph[v].id = id;
+#else
+		NodeDesc nodeDesc{nodeTypeId++};
+		nodeTypes.push_back(nodeDesc);
+#endif
 	}
 }
 
 std::vector<NodeDesc> KnowledgeBase::getNodeTypes() {
+#if 0 // itegration with KB disabled for now
 	std::vector<NodeDesc> nodeTypes;
 	auto v_it_range = boost::vertices(kbGraph);
 	for (auto it = v_it_range.first; it != v_it_range.second; ++it) {
@@ -80,8 +88,10 @@ std::vector<NodeDesc> KnowledgeBase::getNodeTypes() {
 			nodeTypes.push_back(nodeDesc);
 		}
 	}
+#endif
 	return nodeTypes;
 }
+#if 0 // integration with KB disabled for now
 std::vector<vertex_descriptor_t> KnowledgeBase::getNodeTypeVertices() {
 	std::vector<vertex_descriptor_t> vertices;
 	auto v_it_range = boost::vertices(kbGraph);
@@ -91,6 +101,7 @@ std::vector<vertex_descriptor_t> KnowledgeBase::getNodeTypeVertices() {
 	}
 	return vertices;
 }
+#endif
 
 void KnowledgeBase::loadParams(const std::string &iniFilename)
 {
