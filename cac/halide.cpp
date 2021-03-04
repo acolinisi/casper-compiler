@@ -180,8 +180,10 @@ std::vector<std::string> compileHalideTasks(cac::TaskGraph &tg,
 		cac::Platform &plat, cac::KnowledgeBase &kb) {
 	std::vector<std::string> libs;
 	std::vector<Target> targets;
+	unsigned halideTasks = 0;
 	for (auto &task : tg.tasks) {
 		if (task->type == cac::Task::Halide) {
+			halideTasks++;
 			cac::HalideTask *hTask = static_cast<cac::HalideTask *>(task.get());
 			const std::string &generator = task->func;
 			// Compile as many variants as there are node types in the platform
@@ -205,8 +207,10 @@ std::vector<std::string> compileHalideTasks(cac::TaskGraph &tg,
 			}
 		}
 	}
-	const std::string &rtLib = compileHalideRuntime(targets);
-	libs.push_back(rtLib);
+	if (halideTasks > 0) {
+		const std::string &rtLib = compileHalideRuntime(targets);
+		libs.push_back(rtLib);
+	}
 	return libs;
 }
 
