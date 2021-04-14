@@ -51,7 +51,12 @@ function(casper_add_exec target meta_prog)
 
 	find_package(Threads)
 	find_package(Python REQUIRED COMPONENTS Interpreter)
+	find_package(PkgConfig REQUIRED)
+	pkg_check_modules(PETSC REQUIRED petsc)
 
+	string(JOIN : META_PROG_PYTHON_PATH
+		${CMAKE_CURRENT_SOURCE_DIR} ${CASPER_PYAPI_DIR} ${CAC_PY_DIR}
+		${Python_SITELIB} ${PETSC_LIBDIR} ${FARG_EXTRA_PYTHONPATH})
 
 	add_executable(${meta_prog} ${FARG_SOURCES})
 	target_link_libraries(${meta_prog} LINK_PUBLIC ${CASPER_COMPILER_LIBS})
@@ -60,7 +65,7 @@ function(casper_add_exec target meta_prog)
 	# Common across invocations of metaprogram (for harness and for app)
 	set(META_PROG_ARGS
 		--platform ${FARG_PLATFORM}
-		--python-path "${CMAKE_CURRENT_SOURCE_DIR}:${CASPER_PYAPI_DIR}:${CAC_PY_DIR}:${Python_SITELIB}:${FARG_EXTRA_PYTHONPATH}"
+		--python-path "${META_PROG_PYTHON_PATH}"
 	)
 	set(TARGET_OPTS
 		C_KERNEL_SOURCES ${FARG_C_KERNEL_SOURCES}
