@@ -1,5 +1,12 @@
 message(STATUS "Found CASPER: ${CMAKE_CURRENT_LIST_DIR}")
 
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  message(FATAL_ERROR
+    "${CMAKE_CXX_COMPILER_ID} compiler not supported; "
+    "only Clang is supported: clean build directory and set "
+    "CC=clang CXX=clang++ env vars")
+endif()
+
 # TODO: these won't work when Casper is installed into the system
 set(CASPER_META_INCLUDE_DIRS ${CASPER_DIR}/cac/include)
 set(CASPER_META_LIB_DIRS

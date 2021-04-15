@@ -19,6 +19,13 @@ set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard to conform to")
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
+if(NOT (CMAKE_C_COMPILER_ID STREQUAL "Clang"
+  AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+  message(FATAL_ERROR "${CMAKE_CXX_COMPILER_ID} compiler not supported; "
+  "only Clang is supported: clean build directory and set "
+  "CC=clang CXX=clang++ env vars")
+endif()
+
 find_package(MLIR REQUIRED CONFIG)
 
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
