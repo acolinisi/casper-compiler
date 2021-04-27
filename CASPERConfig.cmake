@@ -42,7 +42,7 @@ set(CASPER_COMPILER_LIBS
 function(casper_add_exec target meta_prog)
 	cmake_parse_arguments(FARG
 		""
-		"PLATFORM;INPUT_DESC;CANDIDATES;TUNED_PARAMS;EXTRA_PYTHONPATH"
+		"PLATFORM;INPUT_DESC;CANDIDATES;TUNED_PARAMS;RUNTIME_CFG;EXTRA_PYTHONPATH"
 		"SOURCES;C_KERNEL_SOURCES;EXTRA_INCLUDE_DIRS;EXTRA_PACKAGES;EXTRA_LIBRARIES;TRAIN_ARGS"
 		${ARGN})
 
@@ -51,6 +51,7 @@ function(casper_add_exec target meta_prog)
 		${FARG_INPUT_DESC}
 		${FARG_CANDIDATES}
 		${FARG_TUNED_PARAMS}
+		${FARG_RUNTIME_CFG}
 	)
 	foreach(spec_file ${SPEC_FILES})
 		configure_file(${spec_file} ${spec_file} COPYONLY)
