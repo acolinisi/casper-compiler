@@ -57,7 +57,7 @@ std::string compute_base_path(const std::string &output_dir,
 std::map<Output, std::string> compute_output_files(const Target &target,
                                                    const std::string &base_path,
                                                    const std::set<Output> &outputs) {
-    std::map<Output, Internal::OutputInfo> output_info = Internal::get_output_info(target);
+    std::map<Output, const Internal::OutputInfo> output_info = Internal::get_output_info(target);
 
     std::map<Output, std::string> output_files;
     for (auto o : outputs) {
@@ -116,7 +116,7 @@ std::string compileHalideKernel(const std::string &generator,
   // be compilable for more than one target (if it is, then define the variant
   // twice with the same params, once for each target).
   std::vector<Target> variant_target{target};
-  compile_multitarget(function_name, output_files, variant_target,
+  compile_multitarget(function_name, output_files, variant_target, {},
       module_factory, no_compiler_logger_factory);
   return output_files.at(Output::static_library);
 }
@@ -166,10 +166,10 @@ void introspectHalideTasks(cac::TaskGraph &tg) {
 			for (auto *p : paramInfo.generator_params()) {
 				// TODO: need a myType() method in base class
 				if (dynamic_cast<::cac::TunableGeneratorParam*>(p)) {
-					halideTaskObj->impl->params.push_back(p->name);
+					halideTaskObj->impl->params.push_back(p->name());
 				}
 				if (dynamic_cast<::cac::InputGeneratorParam*>(p)) {
-					halideTaskObj->impl->inputProps.push_back(p->name);
+					halideTaskObj->impl->inputProps.push_back(p->name());
 				}
 			}
 		}
